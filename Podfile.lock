@@ -1,0 +1,16 @@
+PODS:
+  - Bow (0.1.0)
+
+DEPENDENCIES:
+  - Bow (~> 0.1.0)
+
+SPEC REPOS:
+  https://github.com/cocoapods/specs.git:
+    - Bow
+
+SPEC CHECKSUMS:
+  Bow: 15e07c72ffd3c795ef7d9de684d9c71e9752d254
+
+PODFILE CHECKSUM: 9943382d1b22d7ca6c1f14bcae8955a4ad327d2f
+
+COCOAPODS: 1.5.2

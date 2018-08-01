@@ -1,0 +1,6 @@
+framework module Pods_ImperativeToFunctionalTests {
+  umbrella header "Pods-ImperativeToFunctionalTests-umbrella.h"
+
+  export *
+  module * { export * }
+}
