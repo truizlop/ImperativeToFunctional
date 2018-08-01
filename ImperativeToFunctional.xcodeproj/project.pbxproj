@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		118D23B32111DBF5002EA211 /* TaglessFinalMainTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118D23B22111DBF5002EA211 /* TaglessFinalMainTest.swift */; };
 		11E09BF12111C1180093EA35 /* ImperativeToFunctional.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 11E09BE72111C1180093EA35 /* ImperativeToFunctional.framework */; };
 		11E09BF82111C1180093EA35 /* ImperativeToFunctional.h in Headers */ = {isa = PBXBuildFile; fileRef = 11E09BEA2111C1180093EA35 /* ImperativeToFunctional.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		11E09C042111C1780093EA35 /* ImperativeMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E09C032111C1780093EA35 /* ImperativeMain.swift */; };
@@ -15,6 +16,8 @@
 		11E09C0A2111C8210093EA35 /* MonomorphicMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E09C092111C8210093EA35 /* MonomorphicMain.swift */; };
 		11E09C0B2111C8210093EA35 /* MonomorphicMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E09C092111C8210093EA35 /* MonomorphicMain.swift */; };
 		11E09C0E2111D2010093EA35 /* MonomorphicMainTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E09C0D2111D2010093EA35 /* MonomorphicMainTest.swift */; };
+		11E09C112111D41F0093EA35 /* TaglessFinalMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E09C102111D41F0093EA35 /* TaglessFinalMain.swift */; };
+		11E09C122111D41F0093EA35 /* TaglessFinalMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E09C102111D41F0093EA35 /* TaglessFinalMain.swift */; };
 		4F05255B0727006C8FEBDF81 /* Pods_ImperativeToFunctionalTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46E5BF706F5E559D1DA05704 /* Pods_ImperativeToFunctionalTests.framework */; };
 		4F7E28E72D5BCA26EF5CD88A /* Pods_ImperativeToFunctional.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 317EC5D1E96B7C1AA616B76D /* Pods_ImperativeToFunctional.framework */; };
 /* End PBXBuildFile section */
@@ -30,6 +33,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		118D23B22111DBF5002EA211 /* TaglessFinalMainTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaglessFinalMainTest.swift; sourceTree = "<group>"; };
 		11E09BE72111C1180093EA35 /* ImperativeToFunctional.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ImperativeToFunctional.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		11E09BEA2111C1180093EA35 /* ImperativeToFunctional.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ImperativeToFunctional.h; sourceTree = "<group>"; };
 		11E09BEB2111C1180093EA35 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -39,6 +43,7 @@
 		11E09C052111C1AF0093EA35 /* ImperativeMainTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImperativeMainTest.swift; sourceTree = "<group>"; };
 		11E09C092111C8210093EA35 /* MonomorphicMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonomorphicMain.swift; sourceTree = "<group>"; };
 		11E09C0D2111D2010093EA35 /* MonomorphicMainTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonomorphicMainTest.swift; sourceTree = "<group>"; };
+		11E09C102111D41F0093EA35 /* TaglessFinalMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaglessFinalMain.swift; sourceTree = "<group>"; };
 		1E0B79A6A1B6C6CEEB06DF15 /* Pods-ImperativeToFunctional.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ImperativeToFunctional.release.xcconfig"; path = "Pods/Target Support Files/Pods-ImperativeToFunctional/Pods-ImperativeToFunctional.release.xcconfig"; sourceTree = "<group>"; };
 		317EC5D1E96B7C1AA616B76D /* Pods_ImperativeToFunctional.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ImperativeToFunctional.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		401AA23D407590A1EBEB4B45 /* Pods-ImperativeToFunctionalTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ImperativeToFunctionalTests.debug.xcconfig"; path = "Pods/Target Support Files/Pods-ImperativeToFunctionalTests/Pods-ImperativeToFunctionalTests.debug.xcconfig"; sourceTree = "<group>"; };
@@ -68,6 +73,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		118D23B12111DBC0002EA211 /* TaglessFinal */ = {
+			isa = PBXGroup;
+			children = (
+				118D23B22111DBF5002EA211 /* TaglessFinalMainTest.swift */,
+			);
+			path = TaglessFinal;
+			sourceTree = "<group>";
+		};
 		11E09BDD2111C1170093EA35 = {
 			isa = PBXGroup;
 			children = (
@@ -95,6 +108,7 @@
 				11E09BEB2111C1180093EA35 /* Info.plist */,
 				11E09C012111C1590093EA35 /* Imperative */,
 				11E09C082111C8030093EA35 /* Monomorphic */,
+				11E09C0F2111D4060093EA35 /* TaglessFinal */,
 			);
 			path = ImperativeToFunctional;
 			sourceTree = "<group>";
@@ -105,6 +119,7 @@
 				11E09BF72111C1180093EA35 /* Info.plist */,
 				11E09C022111C1640093EA35 /* Imperative */,
 				11E09C0C2111D1E90093EA35 /* Monomorphic */,
+				118D23B12111DBC0002EA211 /* TaglessFinal */,
 			);
 			path = ImperativeToFunctionalTests;
 			sourceTree = "<group>";
@@ -139,6 +154,14 @@
 				11E09C0D2111D2010093EA35 /* MonomorphicMainTest.swift */,
 			);
 			path = Monomorphic;
+			sourceTree = "<group>";
+		};
+		11E09C0F2111D4060093EA35 /* TaglessFinal */ = {
+			isa = PBXGroup;
+			children = (
+				11E09C102111D41F0093EA35 /* TaglessFinalMain.swift */,
+			);
+			path = TaglessFinal;
 			sourceTree = "<group>";
 		};
 		94E766693804D97BEC21BCE9 /* Pods */ = {
@@ -330,6 +353,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				11E09C112111D41F0093EA35 /* TaglessFinalMain.swift in Sources */,
 				11E09C0A2111C8210093EA35 /* MonomorphicMain.swift in Sources */,
 				11E09C042111C1780093EA35 /* ImperativeMain.swift in Sources */,
 			);
@@ -342,7 +366,9 @@
 				11E09C0E2111D2010093EA35 /* MonomorphicMainTest.swift in Sources */,
 				11E09C062111C1AF0093EA35 /* ImperativeMainTest.swift in Sources */,
 				11E09C072111C1BC0093EA35 /* ImperativeMain.swift in Sources */,
+				11E09C122111D41F0093EA35 /* TaglessFinalMain.swift in Sources */,
 				11E09C0B2111C8210093EA35 /* MonomorphicMain.swift in Sources */,
+				118D23B32111DBF5002EA211 /* TaglessFinalMainTest.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
