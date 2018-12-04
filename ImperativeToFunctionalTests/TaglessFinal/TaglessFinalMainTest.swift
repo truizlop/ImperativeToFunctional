@@ -9,7 +9,7 @@ class TaglessFinalMainTest: XCTestCase {
     
     func testTaglessFinalMainState() {
         let data = TestData(input: [ "Tomás", "1", "n" ], output: [], numbers: [0])
-        let result = TaglessFinalMain.mainTest().run(data, Id<()>.monad()).fix()
-        print(result.value.0.output)
+        let result = TaglessFinalMain.mainTest().run(data)
+        print(result.0.output)
     }
 }

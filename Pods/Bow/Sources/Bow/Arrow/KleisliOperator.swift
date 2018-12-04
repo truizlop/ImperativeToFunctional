@@ -30,7 +30,7 @@ public func >=><A, B, C, D>(_ f : @escaping (A) -> MapK<D, B>, _ g : @escaping (
     return { a in f(a) >>= g }
 }
 
-public func >=><A, B, C>(_ f : @escaping (A) -> Maybe<B>, _ g : @escaping (B) -> Maybe<C>) -> (A) -> Maybe<C> {
+public func >=><A, B, C>(_ f : @escaping (A) -> Option<B>, _ g : @escaping (B) -> Option<C>) -> (A) -> Option<C> {
     return { a in f(a) >>= g }
 }
 
@@ -43,9 +43,5 @@ public func >=><A, B, C, D>(_ f : @escaping (A) -> Reader<D, B>, _ g : @escaping
 }
 
 public func >=><A, B, C>(_ f : @escaping (A) -> Try<B>, _ g : @escaping (B) -> Try<C>) -> (A) -> Try<C> {
-    return { a in f(a) >>= g }
-}
-
-public func >=><A, B, C, D>(_ f : @escaping (A) -> Free<D, B>, _ g : @escaping (B) -> Free<D, C>) -> (A) -> Free<D, C> {
     return { a in f(a) >>= g }
 }

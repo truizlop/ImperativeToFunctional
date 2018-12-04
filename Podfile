@@ -6,7 +6,8 @@ target 'ImperativeToFunctional' do
   use_frameworks!
 
   # Pods for ImperativeToFunctional
-  pod 'Bow', '~> 0.1.0'
+  pod 'Bow', '~> 0.2.0'
+  pod 'BowEffects', '~> 0.2.0'
 
   target 'ImperativeToFunctionalTests' do
     inherit! :search_paths

@@ -1,5 +1,6 @@
 import Foundation
 import Bow
+import BowEffects
 
 class MonomorphicMain {
     static func put(line: String) -> IO<()> {
@@ -7,18 +8,18 @@ class MonomorphicMain {
     }
     
     static func getLine() -> IO<String> {
-        return IO.invoke({ Maybe.fromOption(readLine()).getOrElse("") })
+        return IO.invoke({ Option.fromOption(readLine()).getOrElse("") })
     }
     
-    static func parseInt(_ line : String) -> Maybe<Int> {
-        return Maybe.fromOption(Int(line))
+    static func parseInt(_ line : String) -> Option<Int> {
+        return Option.fromOption(Int(line))
     }
     
     static func random(upTo n : Int) -> IO<Int> {
         return IO.invoke { Int(arc4random_uniform(UInt32(n))) }
     }
     
-    static func check(guess : Maybe<Int>, number : Int, name : String) -> IO<()> {
+    static func check(guess : Option<Int>, number : Int, name : String) -> IO<()> {
         return guess.fold(
             { put(line: "You didn't enter a number!") },
             { guess in

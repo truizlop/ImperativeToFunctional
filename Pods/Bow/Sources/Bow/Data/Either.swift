@@ -48,6 +48,14 @@ public class Either<A, B> : EitherOf<A, B> {
         return !isLeft
     }
     
+    public var leftValue : A {
+        return fold(id, { _ in fatalError("Attempted to obtain leftValue on a right instance") })
+    }
+    
+    public var rightValue : B {
+        return fold({ _ in fatalError("Attempted to obtain rightValue on a left instance") }, id)
+    }
+    
     public func foldL<C>(_ c : C, _ f : (C, B) -> C) -> C {
         return fold(constant(c), { b in f(c, b) })
     }
@@ -82,8 +90,8 @@ public class Either<A, B> : EitherOf<A, B> {
         return fold(constant(false), predicate)
     }
     
-    public func toMaybe() -> Maybe<B> {
-        return fold(constant(Maybe<B>.none()), Maybe<B>.some)
+    public func toOption() -> Option<B> {
+        return fold(constant(Option<B>.none()), Option<B>.some)
     }
     
     public func getOrElse(_ defaultValue : B) -> B {
@@ -148,6 +156,10 @@ public extension Either {
     
     public static func monad() -> EitherMonad<A> {
         return EitherMonad<A>()
+    }
+    
+    public static func applicativeError() -> EitherMonadError<A> {
+        return EitherMonadError<A>()
     }
     
     public static func monadError() -> EitherMonadError<A> {

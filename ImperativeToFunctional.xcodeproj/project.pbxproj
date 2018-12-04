@@ -225,7 +225,6 @@
 				11E09BEC2111C1180093EA35 /* Sources */,
 				11E09BED2111C1180093EA35 /* Frameworks */,
 				11E09BEE2111C1180093EA35 /* Resources */,
-				9E49E9A23BBD0F9AB7E0925B /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -249,10 +248,11 @@
 				TargetAttributes = {
 					11E09BE62111C1180093EA35 = {
 						CreatedOnToolsVersion = 9.4.1;
-						LastSwiftMigration = 0940;
+						LastSwiftMigration = 1010;
 					};
 					11E09BEF2111C1180093EA35 = {
 						CreatedOnToolsVersion = 9.4.1;
+						LastSwiftMigration = 1010;
 					};
 				};
 			};
@@ -292,24 +292,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		9E49E9A23BBD0F9AB7E0925B /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${SRCROOT}/Pods/Target Support Files/Pods-ImperativeToFunctionalTests/Pods-ImperativeToFunctionalTests-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/Bow/Bow.framework",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Bow.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-ImperativeToFunctionalTests/Pods-ImperativeToFunctionalTests-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		E7E0A5034F67B23A8C00ED25 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -526,7 +508,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -553,7 +535,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.truizlop.ImperativeToFunctional;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -573,7 +555,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.truizlop.ImperativeToFunctionalTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -593,7 +575,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.truizlop.ImperativeToFunctionalTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;

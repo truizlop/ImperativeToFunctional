@@ -1,5 +1,6 @@
 import Foundation
 import Bow
+import BowEffects
 
 protocol Console : Typeclass {
     associatedtype F
@@ -20,7 +21,7 @@ class ConsoleIO : Console {
     }
     
     func getLine() -> Kind<ForIO, String> {
-        return IO.invoke { Maybe.fromOption(readLine()).getOrElse("") }
+        return IO.invoke { Option.fromOption(readLine()).getOrElse("") }
     }
 }
 
@@ -43,7 +44,7 @@ struct TestData {
 }
 
 typealias Test<A> = State<TestData, A>
-typealias ForTest = StateTPartial<ForId, TestData>
+typealias ForTest = StatePartial<TestData>
 
 class ConsoleTest : Console {
     func write(line: String) -> Kind<ForTest, ()> {
@@ -52,7 +53,7 @@ class ConsoleTest : Console {
         })
     }
     
-    func getLine() -> Kind<StateTPartial<ForId, TestData>, String> {
+    func getLine() -> Kind<StatePartial<TestData>, String> {
         return Test<String>({ data in
             let newData = data.copy(input: Array<String>(data.input.dropFirst()))
             let nextInput = data.input.first!
@@ -70,11 +71,11 @@ class RandomnessTest : Randomness {
 }
 
 class TaglessFinalMain {
-    static func parseInt(_ line : String) -> Maybe<Int> {
-        return Maybe.fromOption(Int(line))
+    static func parseInt(_ line : String) -> Option<Int> {
+        return Option.fromOption(Int(line))
     }
     
-    static func check<F, Cons>(guess : Maybe<Int>, number : Int, name : String, console : Cons) -> Kind<F, ()>
+    static func check<F, Cons>(guess : Option<Int>, number : Int, name : String, console : Cons) -> Kind<F, ()>
         where Cons : Console, Cons.F == F {
         return guess.fold(
             { console.write(line: "You didn't enter a number!") },
@@ -131,8 +132,8 @@ class TaglessFinalMain {
         return main(monad: IO<()>.monad(), console: ConsoleIO(), randomness: RandomnessIO()).fix()
     }
     
-    static func mainTest() -> StateT<ForId, TestData, ()> {
-        return StateT<ForId, TestData, ()>.fix(main(monad: Test<()>.monad(Id<()>.monad()), console: ConsoleTest(), randomness: RandomnessTest()))
+    static func mainTest() -> State<TestData, ()> {
+        return State<TestData, ()>.fix(main(monad: Test<()>.monad(), console: ConsoleTest(), randomness: RandomnessTest())) as! State<TestData, ()>
     }
 }
 
