@@ -1,8 +1,16 @@
-# Bow
+![](https://github.com/bow-swift/bow-art/blob/master/assets/bow-header-github.png?raw=true)
 
-[![Build Status](https://travis-ci.org/arrow-kt/bow.svg?branch=master)](https://travis-ci.org/arrow-kt/bow)
-[![codecov](https://codecov.io/gh/arrow-kt/bow/branch/master/graph/badge.svg)](https://codecov.io/gh/arrow-kt/bow)
-[![Gitter](https://badges.gitter.im/arrow-kt/bow.svg)](https://gitter.im/arrow-kt/bow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+<p align="center">
+<a href="https://travis-ci.org/bow-swift/bow">
+<img src="https://travis-ci.org/bow-swift/bow.svg?branch=master">
+</a>
+<a href="https://codecov.io/gh/bow-swift/bow">
+<img src="https://codecov.io/gh/bow-swift/bow/branch/master/graph/badge.svg">
+</a>
+<a href="https://gitter.im/bowswift/bow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
+<img src="https://badges.gitter.im/bowswift/bow.svg">
+</a>
+</p>
 
 Bow is a library for Typed Functional Programming in Swift.
 
@@ -16,11 +24,69 @@ Bow is split in multiple modules that can be consumed independently. These modul
 - `BowFree`: module to work with Free Monads.
 - `BowGeneric`: module to work with generic data types.
 - `BowEffects`: module to work with effects.
-- `BowResult`: module to provide an integration with Result.
 - `BowBrightFutures`: module to provide an integration with BrightFutures.
 - `BowRx`: module to provide an integration with RxSwift.
 
-Bow is available using Cocoapods, Carthage and Swift Package Manager.
+Bow is available using CocoaPods, Carthage and Swift Package Manager.
+
+### CocoaPods
+
+You can consume each Bow module as a separate pod. You can add these lines to your Podfile at your convenience:
+
+```ruby
+pod "Bow",                 "~> 0.4.0"
+pod "BowOptics",           "~> 0.4.0"
+pod "BowRecursionSchemes", "~> 0.4.0"
+pod "BowFree",             "~> 0.4.0"
+pod "BowGeneric",          "~> 0.4.0"
+pod "BowEffects",          "~> 0.4.0"
+pod "BowRx",               "~> 0.4.0"
+pod "BowBrightFutures",    "~> 0.4.0"
+```
+
+### Carthage
+
+Carthage will download the whole Bow project, but it will compile individual frameworks for each module that you can use separately. Add this line to your Cartfile:
+
+```
+github "bow-swift/Bow" ~> 0.4.0
+```
+
+### Swift Package Manager
+
+Create a `Package.swift` file similar to the next one and use the dependencies at your convenience.
+
+```
+// swift-tools-version:5.0
+
+import PackageDescription
+
+let package = Package(
+    name: "BowTestProject",
+    dependencies: [
+        .package(url: "https://github.com/bow-swift/bow.git", from: "0.4.0")
+    ],
+    targets: [
+        .target(name: "BowTestProject",
+                dependencies: [
+                    "Bow",
+                    "BowOptics",
+                    "BowRecursionSchemes",
+                    "BowFree",
+                    "BowGeneric",
+                    "BowEffects",
+                    "BowRx",
+                    "BowBrightFutures"]
+        )
+    ]
+)
+```
+
+To build it, just run:
+
+```
+$ swift build
+```
 
 ## Contributing
 

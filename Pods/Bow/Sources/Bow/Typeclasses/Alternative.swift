@@ -1,3 +1,4 @@
 import Foundation
 
-public protocol Alternative : Applicative, MonoidK {}
+/// An Alternative is an `Applicative` with `MonoidK` capabilities.
+public protocol Alternative: Applicative, MonoidK {}

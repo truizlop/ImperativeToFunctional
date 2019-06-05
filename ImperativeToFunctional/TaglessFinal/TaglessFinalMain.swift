@@ -2,31 +2,27 @@ import Foundation
 import Bow
 import BowEffects
 
-protocol Console : Typeclass {
-    associatedtype F
-    
-    func write(line: String) -> Kind<F, ()>
-    func getLine() -> Kind<F, String>
+protocol Console {
+    static func write(line: String) -> Kind<Self, ()>
+    static func getLine() -> Kind<Self, String>
 }
 
-protocol Randomness : Typeclass {
-    associatedtype F
-    
-    func nextInt(upTo n : Int) -> Kind<F, Int>
+protocol Randomness {
+    static func nextInt(upTo n: Int) -> Kind<Self, Int>
 }
 
-class ConsoleIO : Console {
-    func write(line: String) -> Kind<ForIO, ()> {
+extension IOPartial: Console {
+    static func write(line: String) -> Kind<IOPartial<E>, ()> {
         return IO.invoke { print(line) }
     }
     
-    func getLine() -> Kind<ForIO, String> {
-        return IO.invoke { Option.fromOption(readLine()).getOrElse("") }
+    static func getLine() -> Kind<IOPartial<E>, String> {
+        return IO.invoke { Option.fromOptional(readLine()).getOrElse("") }
     }
 }
 
-class RandomnessIO : Randomness {
-    func nextInt(upTo n : Int) -> Kind<ForIO, Int> {
+extension IOPartial: Randomness {
+    static func nextInt(upTo n: Int) -> Kind<IOPartial<E>, Int> {
         return IO.invoke{ Int(arc4random_uniform(UInt32(n))) }
     }
 }
@@ -46,14 +42,14 @@ struct TestData {
 typealias Test<A> = State<TestData, A>
 typealias ForTest = StatePartial<TestData>
 
-class ConsoleTest : Console {
-    func write(line: String) -> Kind<ForTest, ()> {
+extension ForTest: Console {
+    static func write(line: String) -> Kind<StateTPartial<F, S>, ()> {
         return Test<()>({ data in
             (data.copy(output: data.output + [line]), ())
         })
     }
     
-    func getLine() -> Kind<StatePartial<TestData>, String> {
+    static func getLine() -> Kind<StateTPartial<F, S>, String> {
         return Test<String>({ data in
             let newData = data.copy(input: Array<String>(data.input.dropFirst()))
             let nextInput = data.input.first!
@@ -62,8 +58,8 @@ class ConsoleTest : Console {
     }
 }
 
-class RandomnessTest : Randomness {
-    func nextInt(upTo n : Int) -> Kind<ForTest, Int> {
+extension ForTest: Randomness {
+    static func nextInt(upTo n: Int) -> Kind<StateTPartial<F, S>, Int> {
         return Test<Int>({ data in
             (data.copy(numbers: Array<Int>(data.numbers.dropFirst())), data.numbers.first!)
         })
@@ -71,69 +67,58 @@ class RandomnessTest : Randomness {
 }
 
 class TaglessFinalMain {
-    static func parseInt(_ line : String) -> Option<Int> {
-        return Option.fromOption(Int(line))
+    static func parseInt(_ line: String) -> Option<Int> {
+        return Option.fromOptional(Int(line))
     }
     
-    static func check<F, Cons>(guess : Option<Int>, number : Int, name : String, console : Cons) -> Kind<F, ()>
-        where Cons : Console, Cons.F == F {
+    static func check<F: Console>(guess: Option<Int>, number: Int, name: String) -> Kind<F, ()> {
         return guess.fold(
-            { console.write(line: "You didn't enter a number!") },
+            { F.write(line: "You didn't enter a number!") },
             { guess in
                 if guess == number {
-                    return console.write(line: "You guessed right, \(name)")
+                    return F.write(line: "You guessed right, \(name)")
                 } else {
-                    return console.write(line: "You guessed wrong, \(name)! The number was \(number).")
+                    return F.write(line: "You guessed wrong, \(name)! The number was \(number).")
                 }
         })
     }
     
-    static func checkExit<F, Mon, Cons, Rand>(name : String, monad : Mon, console : Cons, randomness : Rand) -> Kind<F, ()>
-        where Mon : Monad, Mon.F == F,
-        Cons : Console, Cons.F == F,
-        Rand : Randomness, Rand.F == F {
-        return monad.binding(
-            { console.write(line: "Do you want to continue, \(name)?") },
-            { _ in console.getLine() },
+    static func checkExit<F: Monad & Console & Randomness>(name: String) -> Kind<F, ()> {
+        return F.binding(
+            { F.write(line: "Do you want to continue, \(name)?") },
+            { _ in F.getLine() },
             { _, answer in
                 switch answer.lowercased() {
-                case "y": return gameLoop(name, monad: monad, console: console, randomness: randomness)
-                case "n": return monad.pure(())
-                default: return checkExit(name: name, monad: monad, console: console, randomness: randomness)
+                case "y": return gameLoop(name)
+                case "n": return F.pure(())
+                default: return checkExit(name: name)
                 }
             })
     }
     
-    static func gameLoop<F, Mon, Cons, Rand>(_ name : String, monad : Mon, console : Cons, randomness : Rand) -> Kind<F, ()>
-        where Mon : Monad, Mon.F == F,
-            Cons : Console, Cons.F == F,
-            Rand : Randomness, Rand.F == F {
-        return monad.binding(
-            { monad.map(randomness.nextInt(upTo: 5), { $0 + 1 }) },
-            { _ in console.write(line: "Dear \(name), please guess a number from 1 to 5:") },
-            { _, _ in monad.map(console.getLine(), parseInt) },
-            { number, _, guess in check(guess: guess, number: number, name: name, console: console) },
-            { _, _, _, _ in checkExit(name: name, monad: monad, console: console, randomness: randomness) }
+    static func gameLoop<F: Monad & Console & Randomness>(_ name: String) -> Kind<F, ()> {
+        return F.binding(
+            { F.map(F.nextInt(upTo: 5), { $0 + 1 }) },
+            { _ in F.write(line: "Dear \(name), please guess a number from 1 to 5:") },
+            { _, _ in F.map(F.getLine(), parseInt) },
+            { number, _, guess in check(guess: guess, number: number, name: name) },
+            { _, _, _, _ in checkExit(name: name) }
             )
     }
     
-    static func main<F, Mon, Cons, Rand>(monad : Mon, console : Cons, randomness : Rand) -> Kind<F, ()>
-        where Mon : Monad, Mon.F == F,
-            Cons : Console, Cons.F == F,
-            Rand : Randomness, Rand.F == F {
-        return monad.binding(
-            { console.write(line: "What is your name?") },
-            { _ in console.getLine() },
-            { _, name in console.write(line: "Hello, \(name), welcome to the game!") },
-            { _, name, _ in gameLoop(name, monad: monad, console: console, randomness: randomness) })
+    static func main<F: Monad & Console & Randomness>() -> Kind<F, ()> {
+        return F.binding(
+            { F.write(line: "What is your name?") },
+            { _ in F.getLine() },
+            { _, name in F.write(line: "Hello, \(name), welcome to the game!") },
+            { _, name, _ in gameLoop(name) })
     }
     
-    static func mainIO() -> IO<()> {
-        return main(monad: IO<()>.monad(), console: ConsoleIO(), randomness: RandomnessIO()).fix()
+    static func mainIO() -> IO<Never, ()> {
+        return main()^
     }
     
     static func mainTest() -> State<TestData, ()> {
-        return State<TestData, ()>.fix(main(monad: Test<()>.monad(), console: ConsoleTest(), randomness: RandomnessTest())) as! State<TestData, ()>
+        return main() as! State<TestData, ()>
     }
 }
-

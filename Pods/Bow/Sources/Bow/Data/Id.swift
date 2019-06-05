@@ -1,186 +1,123 @@
 import Foundation
 
-public class ForId {}
+/// Witness for the `Id<A>` data type. To be used in simulated Higher Kinded Types.
+public final class ForId {}
+
+/// Higher Kinded Type alias to improve readability of `Kind<ForId, A>`.
 public typealias IdOf<A> = Kind<ForId, A>
 
-public class Id<A> : IdOf<A> {
-    public let value : A
-    
-    public static func pure(_ a : A) -> Id<A> {
-        return Id<A>(a)
+/// The identity data type represents a context of having no effect on the type it wraps. A instance of `Id<A>` is isomorphic to an instance of `A`; it is just wrapped without any additional information.
+public class Id<A>: IdOf<A> {
+    /// Value wrapped in this `Id`.
+    public let value: A
+
+    /// Safe downcast.
+    ///
+    /// - Parameter fa: Value in the higher-kind form.
+    /// - Returns: Value cast to `Id`.
+    public static func fix(_ fa: IdOf<A>) -> Id<A> {
+        return fa as! Id<A>
     }
     
-    public static func tailRecM<B>(_ a : (A), _ f : (A) -> IdOf<Either<A, B>>) -> Id<B> {
-        return Id<Either<A, B>>.fix(f(a)).value
-            .fold({ left in tailRecM(left, f)},
-                  Id<B>.pure)
-    }
-    
-    public static func fix(_ fa : IdOf<A>) -> Id<A> {
-        return fa.fix()
-    }
-    
-    public init(_ value : A) {
+    /// Constructs a value of `Id`.
+    ///
+    /// - Parameter value: Value to be wrapped in `Id`.
+    public init(_ value: A) {
         self.value = value
     }
-    
-    public func map<B>(_ f : (A) -> B) -> Id<B> {
-        return Id<B>(f(value))
-    }
-    
-    public func ap<B>(_ ff : Id<(A) -> B>) -> Id<B> {
-        return ff.flatMap(map)
-    }
-    
-    public func flatMap<B>(_ f : (A) -> Id<B>) -> Id<B> {
-        return f(value)
-    }
-    
-    public func foldL<B>(_ b : B, _ f : (B, A) -> B) -> B {
-        return f(b, value)
-    }
-    
-    public func foldR<B>(_ b : Eval<B>, _ f : (A, Eval<B>) -> Eval<B>) -> Eval<B> {
-        return f(value, b)
-    }
-    
-    public func traverse<G, B, Appl>(_ f : (A) -> Kind<G, B>, _ applicative : Appl) -> Kind<G, IdOf<B>> where Appl : Applicative, Appl.F == G {
-        return applicative.map(f(self.value), Id<B>.init)
-    }
-    
-    public func coflatMap<B>(_ f : (Id<A>) -> B) -> Id<B> {
-        return self.map{ _ in f(self) }
-    }
-    
-    public func extract() -> A {
-        return value
-    }
 }
 
-public extension Kind where F == ForId {
-    public func fix() -> Id<A> {
-        return self as! Id<A>
-    }
+/// Safe downcast.
+///
+/// - Parameter fa: Value in the higher-kind form.
+/// - Returns: Value cast to `Id`.
+public postfix func ^<A>(_ fa: IdOf<A>) -> Id<A> {
+    return Id.fix(fa)
 }
 
-extension Id : CustomStringConvertible {
-    public var description : String {
+// MARK: Conformance of `Id` to `CustomStringConvertible`.
+extension Id: CustomStringConvertible {
+    public var description: String {
         return "Id(\(value))"
     }
 }
 
-extension Id : CustomDebugStringConvertible where A : CustomDebugStringConvertible {
-    public var debugDescription : String {
+// MARK: Conformance of `Id` to `CustomDebugStringConvertible`, given that type parameter also conforms to `CustomDebugStringConvertible`.
+extension Id: CustomDebugStringConvertible where A : CustomDebugStringConvertible {
+    public var debugDescription: String {
         return "Id(\(value.debugDescription))"
     }
 }
 
-extension Id {
-    public static func functor() -> IdFunctor {
-        return IdFunctor()
-    }
-    
-    public static func applicative() -> IdApplicative {
-        return IdApplicative()
-    }
-    
-    public static func monad() -> IdMonad {
-        return IdMonad()
-    }
-    
-    public static func comonad() -> IdBimonad {
-        return IdBimonad()
-    }
-    
-    public static func bimonad() -> IdBimonad {
-        return IdBimonad()
-    }
-    
-    public static func foldable() -> IdFoldable {
-        return IdFoldable()
-    }
-    
-    public static func traverse() -> IdTraverse {
-        return IdTraverse()
-    }
-
-    public static func eq<EqA>(_ eqa : EqA) -> IdEq<A, EqA> {
-        return IdEq<A, EqA>(eqa)
+// MARK: Instance of `EquatableK` for `Id`
+extension ForId: EquatableK {
+    public static func eq<A>(_ lhs: Kind<ForId, A>, _ rhs: Kind<ForId, A>) -> Bool where A : Equatable {
+        return Id.fix(lhs).value == Id.fix(rhs).value
     }
 }
 
-public class IdFunctor : Functor {
-    public typealias F = ForId
-    
-    public func map<A, B>(_ fa: IdOf<A>, _ f: @escaping (A) -> B) -> IdOf<B> {
-        return fa.fix().map(f)
+// MARK: Instance of `Functor` for `Id`
+extension ForId: Functor {
+    public static func map<A, B>(_ fa: Kind<ForId, A>, _ f: @escaping (A) -> B) -> Kind<ForId, B> {
+        return Id(f(Id.fix(fa).value))
     }
 }
 
-public class IdApplicative : IdFunctor, Applicative {
-    public func pure<A>(_ a: A) -> IdOf<A> {
-        return Id.pure(a)
-    }
-    
-    public func ap<A, B>(_ fa: IdOf<A>, _ ff: IdOf<(A) -> B>) -> IdOf<B> {
-        return fa.fix().ap(ff.fix())
+// MARK: Instance of `Applicative` for `Id`
+extension ForId: Applicative {
+    public static func pure<A>(_ a: A) -> Kind<ForId, A> {
+        return Id(a)
     }
 }
 
-public class IdMonad : IdApplicative, Monad {
-    public func flatMap<A, B>(_ fa: IdOf<A>, _ f: @escaping (A) -> IdOf<B>) -> IdOf<B> {
-        return fa.fix().flatMap({ a in f(a).fix() })
+// MARK: Instance of `Selective` for `Id`
+extension ForId: Selective {}
+
+// MARK: Instance of `Monad` for `Id`
+extension ForId: Monad {
+    public static func flatMap<A, B>(_ fa: Kind<ForId, A>, _ f: @escaping (A) -> Kind<ForId, B>) -> Kind<ForId, B> {
+        let id = Id<A>.fix(fa)
+        return f(id.value)
     }
-    
-    public func tailRecM<A, B>(_ a: A, _ f: @escaping (A) -> IdOf<Either<A, B>>) -> IdOf<B> {
-        return Id.tailRecM(a, f)
+
+    public static func tailRecM<A, B>(_ a: A, _ f: @escaping (A) -> Kind<ForId, Either<A, B>>) -> Kind<ForId, B> {
+        return Id<Either<A, B>>.fix(f(a)).value
+            .fold({ left in tailRecM(left, f)},
+                  Id<B>.pure)
     }
 }
 
-public class IdBimonad : IdMonad, Bimonad {
-    public func coflatMap<A, B>(_ fa: IdOf<A>, _ f: @escaping (IdOf<A>) -> B) -> IdOf<B> {
-        return fa.fix().coflatMap(f as (Id<A>) -> B)
+// MARK: Instance of `Comonad` for `Id`
+extension ForId: Comonad {
+    public static func coflatMap<A, B>(_ fa: Kind<ForId, A>, _ f: @escaping (Kind<ForId, A>) -> B) -> Kind<ForId, B> {
+        return fa.map{ _ in f(fa) }
     }
-    
-    public func extract<A>(_ fa: IdOf<A>) -> A {
-        return fa.fix().extract()
+
+    public static func extract<A>(_ fa: Kind<ForId, A>) -> A {
+        return Id.fix(fa).value
     }
 }
 
-public class IdFoldable : Foldable {
-    public typealias F = ForId
-    
-    public func foldL<A, B>(_ fa: IdOf<A>, _ b: B, _ f: @escaping (B, A) -> B) -> B {
-        return fa.fix().foldL(b, f)
+// MARK: Instance of `Bimonad` for `Id`
+extension ForId: Bimonad {}
+
+// MARK: Instance of `Foldable` for `Id`
+extension ForId: Foldable {
+    public static func foldLeft<A, B>(_ fa: Kind<ForId, A>, _ b: B, _ f: @escaping (B, A) -> B) -> B {
+        let id = Id<A>.fix(fa)
+        return f(b, id.value)
     }
-    
-    public func foldR<A, B>(_ fa: IdOf<A>, _ b: Eval<B>, _ f: @escaping (A, Eval<B>) -> Eval<B>) -> Eval<B> {
-        return fa.fix().foldR(b, f)
+
+    public static func foldRight<A, B>(_ fa: Kind<ForId, A>, _ b: Eval<B>, _ f: @escaping (A, Eval<B>) -> Eval<B>) -> Eval<B> {
+        let id = Id<A>.fix(fa)
+        return f(id.value, b)
     }
 }
 
-public class IdTraverse : IdFoldable, Traverse {
-    public func traverse<G, A, B, Appl>(_ fa: IdOf<A>, _ f: @escaping (A) -> Kind<G, B>, _ applicative: Appl) -> Kind<G, IdOf<B>> where G == Appl.F, Appl : Applicative {
-        return fa.fix().traverse(f, applicative)
-    }
-}
-
-public class IdEq<B, EqB> : Eq where EqB : Eq, EqB.A == B {
-    public typealias A = IdOf<B>
-    
-    private let eqb : EqB
-    
-    public init(_ eqb : EqB) {
-        self.eqb = eqb
-    }
-    
-    public func eqv(_ a: IdOf<B>, _ b: IdOf<B>) -> Bool {
-        return eqb.eqv(Id.fix(a).value, Id.fix(b).value)
-    }
-}
-
-extension Id : Equatable where A : Equatable {
-    public static func ==(lhs : Id<A>, rhs : Id<A>) -> Bool {
-        return lhs.value == rhs.value
+// MARK: Instance of `Traverse` for `Id`
+extension ForId: Traverse {
+    public static func traverse<G: Applicative, A, B>(_ fa: Kind<ForId, A>, _ f: @escaping (A) -> Kind<G, B>) -> Kind<G, Kind<ForId, B>> {
+        let id = Id<A>.fix(fa)
+        return G.map(f(id.value), Id<B>.init)
     }
 }

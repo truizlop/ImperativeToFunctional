@@ -1,303 +1,319 @@
 import Foundation
 
-public class ForWriterT {}
-public typealias WriterTOf<F, W, A> = Kind3<ForWriterT, F, W, A>
-public typealias WriterTPartial<F, W> = Kind2<ForWriterT, F, W>
+/// Witness for the `WriterT<F, W, A>` data type. To be used in simulated Higher Kinded Types.
+public final class ForWriterT {}
 
-public class WriterT<F, W, A> : WriterTOf<F, W, A> {
-    fileprivate let value : Kind<F, (W, A)>
-    
-    public static func pure<Mono, Appl>(_ a : A, _ monoid : Mono, _ applicative : Appl) -> WriterT<F, W, A> where Mono : Monoid, Mono.A == W, Appl : Applicative, Appl.F == F {
-        return WriterT(applicative.pure((monoid.empty, a)))
-    }
-    
-    public static func both<Appl>(_ w : W, _ a : A, _ applicative : Appl) -> WriterT<F, W, A> where Appl : Applicative, Appl.F == F {
-        return WriterT(applicative.pure((w, a)))
-    }
-    
-    public static func fromTuple<Appl>(_ z : (W, A), _ applicative : Appl) -> WriterT<F, W, A> where Appl : Applicative, Appl.F == F {
-        return WriterT(applicative.pure(z))
-    }
-    
-    public static func putT<Func>(_ fa : Kind<F, A>, _ w : W, _ functor : Func) -> WriterT<F, W, A> where Func : Functor, Func.F == F {
-        return WriterT(functor.map(fa, { a in (w, a) }))
-    }
-    
-    public static func put<Appl>(_ a : A, _ w : W, _ applicative : Appl) -> WriterT<F, W, A> where Appl : Applicative, Appl.F == F {
-        return WriterT.putT(applicative.pure(a), w, applicative)
-    }
-    
-    public static func putT2<Func>(_ vf : Kind<F, A>, _ w : W, _ functor : Func) -> WriterT<F, W, A> where Func : Functor, Func.F == F {
-        return WriterT(functor.map(vf, { v in (w, v) }))
-    }
-    
-    public static func put2<Appl>(_ a : A, _ w : W, _ applicative : Appl) -> WriterT<F, W, A> where Appl : Applicative, Appl.F == F {
-        return WriterT.putT2(applicative.pure(a), w, applicative)
-    }
+/// Partial application of the WriterT type constructor, omitting the last parameter.
+public final class WriterTPartial<F, W>: Kind2<ForWriterT, F, W> {}
 
-    public static func tell<Appl>(_ l : W, _ applicative : Appl) -> WriterT<F, W, Unit> where Appl : Applicative, Appl.F == F {
-        return WriterT<F, W, Unit>.put(unit, l, applicative)
-    }
-    
-    public static func value<Appl, Mono>(_ a : A, _ applicative : Appl, _ monoid : Mono) -> WriterT<F, W, A> where Appl : Applicative, Appl.F == F, Mono : Monoid, Mono.A == W {
-        return WriterT.put(a, monoid.empty, applicative)
-    }
-    
-    public static func valueT<Func, Mono>(_ fa : Kind<F, A>, _ functor : Func, _ monoid : Mono) -> WriterT<F, W, A> where Func : Functor, Func.F == F, Mono : Monoid, Mono.A == W {
-        return WriterT.putT(fa, monoid.empty, functor)
-    }
-    
-    public static func empty<MonoK>(_ monoidK : MonoK) -> WriterT<F, W, A> where MonoK : MonoidK, MonoK.F == F {
-        return WriterT(monoidK.emptyK())
-    }
-    
-    public static func pass<Mon>(_ fa : WriterT<F, W, ((W) -> W, A)>, _ monad : Mon) -> WriterT<F, W, A> where Mon : Monad, Mon.F == F {
-        return WriterT(monad.flatMap(fa.content(monad), { tuple2FA in monad.map(fa.write(monad), { l in (tuple2FA.0(l), tuple2FA.1) }) }))
-    }
-    
-    public static func tailRecM<B, Mon>(_ a : A, _ f : @escaping (A) -> Kind<WriterTPartial<F, W>, Either<A, B>>, _ monad : Mon) -> WriterT<F, W, B> where Mon : Monad, Mon.F == F {
-        return WriterT<F, W, B>(monad.tailRecM(a, { inA in
-            monad.map(WriterT<F, W, Either<A, B>>.fix(f(inA)).value, { pair in
-                pair.1.fold(Either<A, (W, B)>.left,
-                            { b in Either<A, (W, B)>.right((pair.0, b)) })
-            })
-        }))
-    }
-    
-    public static func fix(_ fa : WriterTOf<F, W, A>) -> WriterT<F, W, A> {
+/// Higher Kinded Type alias to improve readability over `Kind<WriterTPartial<F, W>, A>`.
+public typealias WriterTOf<F, W, A> = Kind<WriterTPartial<F, W>, A>
+
+/// WriterT transformer represents operations that accumulate values through a computation or effect, without reading them.
+public class WriterT<F, W, A>: WriterTOf<F, W, A> {
+    fileprivate let value: Kind<F, (W, A)>
+
+    /// Safe downcast.
+    ///
+    /// - Parameter fa: Value in the higher-kind form.
+    /// - Returns: Value cast to WriterT.
+    public static func fix(_ fa: WriterTOf<F, W, A>) -> WriterT<F, W, A> {
         return fa as! WriterT<F, W, A>
     }
     
-    public init(_ value : Kind<F, (W, A)>) {
+    /// Initializes a `WriterT`.
+    ///
+    /// - Parameter value: A pair of accumulator and value wrapped in an effect.
+    public init(_ value: Kind<F, (W, A)>) {
         self.value = value
     }
-    
-    public func map<B, Func>(_ f : @escaping (A) -> B, _ functor : Func) -> WriterT<F, W, B> where Func : Functor, Func.F == F {
-        return WriterT<F, W, B>(functor.map(value, { pair in (pair.0, f(pair.1)) }))
+}
+
+/// Safe downcast.
+///
+/// - Parameter fa: Value in higher-kind form.
+/// - Returns: Value cast to WriterT.
+public postfix func ^<F, W, A>(_ fa : WriterTOf<F, W, A>) -> WriterT<F, W, A> {
+    return WriterT.fix(fa)
+}
+
+// MARK: Functions for `WriterT` when the effect has an instance of `Functor`
+extension WriterT where F: Functor {
+    /// Adds an accumulated value to an effect.
+    ///
+    /// - Parameters:
+    ///   - fa: A value wrapped in an effect.
+    ///   - w: A value for the accumulator.
+    /// - Returns: A `WriterT` where the effect wraps the original value with the accumulator.
+    public static func putT(_ fa: Kind<F, A>, _ w: W) -> WriterT<F, W, A> {
+        return WriterT(fa.map { a in (w, a) })
     }
-    
-    public func mapAcc<U, Mon>(_ f : @escaping (W) -> U, _ monad : Mon) -> WriterT<F, U, A> where Mon : Monad, Mon.F == F {
-        return transform({ pair in (f(pair.0), pair.1) }, monad)
+
+    /// Obtains an effect with the result value.
+    ///
+    /// - Returns: Effect with the result value.
+    public func content() -> Kind<F, A> {
+        return value.map { pair in pair.1 }
     }
-    
-    public func bimap<B, U, Mon>(_ g : @escaping (W) -> U, _ f : @escaping (A) -> B, _ monad : Mon) -> WriterT<F, U, B> where Mon : Monad, Mon.F == F {
-        return transform({ pair in (g(pair.0), f(pair.1))}, monad)
-    }
-    
-    public func liftF<B, Appl>(_ fb : Kind<F, B>, _ applicative : Appl) -> WriterT<F, W, B> where Appl : Applicative, Appl.F == F {
-        return WriterT<F, W, B>(applicative.map2(fb, value, { x, y in (y.0, x) }))
-    }
-    
-    public func ap<B, SemiG, Mon>(_ ff : WriterT<F, W, (A) -> B>, _ semigroup : SemiG, _ monad : Mon) -> WriterT<F, W, B> where SemiG : Semigroup, SemiG.A == W, Mon : Monad, Mon.F == F {
-        return ff.flatMap({ pair in self.map(pair, monad)}, semigroup, monad)
-    }
-    
-    public func flatMap<B, SemiG, Mon>(_ f : @escaping (A) -> WriterT<F, W, B>, _ semigroup : SemiG, _ monad : Mon) -> WriterT<F, W, B> where SemiG : Semigroup, SemiG.A == W, Mon : Monad, Mon.F == F {
-        return WriterT<F, W, B>(monad.flatMap(value, { pair in monad.map(f(pair.1).value, { pair2 in (semigroup.combine(pair.0, pair2.0), pair2.1) }) }))
-    }
-    
-    public func semiflatMap<B, SemiG, Mon>(_ f : @escaping (A) -> Kind<F, B>, _ semigroup : SemiG, _ monad : Mon) -> WriterT<F, W, B> where SemiG : Semigroup, SemiG.A == W, Mon : Monad, Mon.F == F {
-        return flatMap({ a in self.liftF(f(a), monad) }, semigroup, monad)
-    }
-    
-    public func subflatMap<B, Mon>(_ f : @escaping (A) -> (W, B), _ monad : Mon) -> WriterT<F, W, B> where Mon : Monad, Mon.F == F {
-        return transform({ pair in f(pair.1) }, monad)
-    }
-    
-    public func transform<B, U, Mon>(_ f : @escaping ((W, A)) -> (U, B), _ monad : Mon) -> WriterT<F, U, B> where Mon : Monad, Mon.F == F {
-        return WriterT<F, U, B>(monad.flatMap(value, { pair in monad.pure(f(pair)) }))
-    }
-    
-    public func swap<Mon>(_ monad : Mon) -> WriterT<F, A, W> where Mon : Monad, Mon.F == F {
-        return transform({ pair in (pair.1, pair.0) }, monad)
-    }
-    
-    public func combineK<SemiGK>(_ y : WriterT<F, W, A>, _ semigroupK : SemiGK) -> WriterT<F, W, A> where SemiGK : SemigroupK, SemiGK.F == F {
-        return WriterT(semigroupK.combineK(value, y.value))
-    }
-    
-    public func tell<SemiG, Mon>(_ w : W, _ semigroup : SemiG, _ monad : Mon) -> WriterT<F, W, A> where SemiG : Semigroup, SemiG.A == W, Mon : Monad, Mon.F == F {
-        return mapAcc({ inW in semigroup.combine(inW, w) }, monad)
-    }
-    
-    public func listen<Mon>(_ monad : Mon) -> Kind<WriterTPartial<F, W>, (W, A)> where Mon : Monad, Mon.F == F {
-        return WriterT<F, W, (W, A)>(monad.flatMap(content(monad), { a in monad.map(self.write(monad), { l in (l, (l, a)) }) }))
-    }
-    
-    public func content<Func>(_ functor : Func) -> Kind<F, A> where Func : Functor, Func.F == F {
-        return functor.map(value, { pair in pair.1 })
-    }
-    
-    public func write<Func>(_ functor : Func) -> Kind<F, W> where Func : Functor, Func.F == F {
-        return functor.map(value, { pair in pair.0 })
-    }
-    
-    public func reset<Mono, Mon>(_ monoid : Mono, _ monad : Mon) -> WriterT<F, W, A> where Mono : Monoid, Mono.A == W, Mon : Monad, Mon.F == F {
-        return mapAcc(constant(monoid.empty), monad)
+
+    /// Obtains an effect with the accumulator value.
+    ///
+    /// - Returns: Effect with the accumulator value.
+    public func write() -> Kind<F, W> {
+        return value.map { pair in pair.0 }
     }
 }
 
-public extension WriterT {
-    public static func functor<FuncF>(_ functor : FuncF) -> WriterTFunctor<F, W, FuncF> {
-        return WriterTFunctor<F, W, FuncF>(functor)
-    }
-    
-    public static func applicative<MonF, MonoW>(_ monad : MonF, _ monoid : MonoW) -> WriterTApplicative<F, W, MonF, MonoW> {
-        return WriterTApplicative<F, W, MonF, MonoW>(monad, monoid)
-    }
-    
-    public static func monad<MonF, MonoW>(_ monad : MonF, _ monoid : MonoW) -> WriterTMonad<F, W, MonF, MonoW> {
-        return WriterTMonad<F, W, MonF, MonoW>(monad, monoid)
-    }
-    
-    public static func monadFilter<MonFilF, MonoW>(_ monad : MonFilF, _ monoid : MonoW) -> WriterTMonadFilter<F, W, MonFilF, MonoW> {
-        return WriterTMonadFilter<F, W, MonFilF, MonoW>(monad, monoid)
-    }
-    
-    public static func semigroupK<SemiKF>(_ semigroupK : SemiKF) -> WriterTSemigroupK<F, W, SemiKF> {
-        return WriterTSemigroupK<F, W, SemiKF>(semigroupK)
-    }
-
-    public static func monoidK<MonoKF>(_ monoidK : MonoKF) -> WriterTMonoidK<F, W, MonoKF> {
-        return WriterTMonoidK<F, W, MonoKF>(monoidK)
-    }
-    
-    public static func writer<MonF, MonoW>(_ monad : MonF, _ monoid : MonoW) -> WriterTMonadWriter<F, W, MonF, MonoW> {
-        return WriterTMonadWriter<F, W, MonF, MonoW>(monad, monoid)
-    }
-    
-    public static func eq<EqF>(_ eq : EqF) -> WriterTEq<F, W, A, EqF> {
-        return WriterTEq<F, W, A, EqF>(eq)
+// MARK: Functions for `WriterT` when the effect has an instance of `Functor` and the accumulator type has an instance of `Monoid`
+extension WriterT where F: Functor, W: Monoid {
+    /// Lifts an effect to a `WriterT` using the empty value of the `Monoid` as the accumulator.
+    ///
+    /// - Parameter fa: An effect.
+    /// - Returns: A `WriterT` where the effect wraps the original value with an empty accumulator.
+    public static func valueT(_ fa: Kind<F, A>) -> WriterT<F, W, A> {
+        return WriterT.putT(fa, W.empty())
     }
 }
 
-public class WriterTFunctor<G, W, FuncG> : Functor where FuncG : Functor, FuncG.F == G {
-    public typealias F = WriterTPartial<G, W>
-    
-    private let functor : FuncG
-    
-    public init(_ functor : FuncG) {
-        self.functor = functor
+// MARK: Functions for `WriterT` when the effect has an instance of `Applicative`
+extension WriterT where F: Applicative {
+    /// Creates a `WriterT` from values for the result and accumulator.
+    ///
+    /// - Parameters:
+    ///   - w: Initial value for the accumulator.
+    ///   - a: Initial value for the result.
+    /// - Returns: A `WriterT` wrapping the provided values in an effect.
+    public static func both(_ w: W, _ a: A) -> WriterT<F, W, A> {
+        return WriterT(F.pure((w, a)))
     }
-    
-    public func map<A, B>(_ fa: WriterTOf<G, W, A>, _ f: @escaping (A) -> B) -> WriterTOf<G, W, B> {
-        return WriterT.fix(fa).map(f, functor)
+
+    /// Creates a `WriterT` from a tuple.
+    ///
+    /// - Parameter z: A tuple where the first component is used for the accumulator and the second for the result value.
+    /// - Returns: A `WriterT` wrapping the provided values in an effect.
+    public static func fromTuple(_ z: (W, A)) -> WriterT<F, W, A> {
+        return WriterT(F.pure(z))
+    }
+
+    /// Creates a `WriterT` from values for the result and accumulator.
+    ///
+    /// - Parameters:
+    ///   - a: Initial value for the result.
+    ///   - w: Initial value for the accumulator.
+    /// - Returns: A `WriterT` wrapping the provided values in an effect.
+    public static func put(_ a: A, _ w: W) -> WriterT<F, W, A> {
+        return WriterT.putT(F.pure(a), w)
+    }
+
+    /// Creates a `WriterT` from an initial value for the accumulator.
+    ///
+    /// - Parameter l: Initial value for the accumulator.
+    /// - Returns: A `WriterT` wrapping the provided value and unit for the result value.
+    public static func tell(_ l: W) -> WriterT<F, W, Unit>  {
+        return WriterT<F, W, Unit>.put(unit, l)
+    }
+
+    /// Lifts an effect using the accumulator value of this `WriterT`.
+    ///
+    /// - Parameter fb: Effect to be lifted.
+    /// - Returns: A `WriterT` wrapping the value contained in the effect parameter and using the accumulator of this `WriterT`.
+    public func liftF<B>(_ fb: Kind<F, B>) -> WriterT<F, W, B> {
+        return WriterT<F, W, B>(F.map(fb, value, { x, y in (y.0, x) }))
     }
 }
 
-public class WriterTApplicative<G, W, MonG, MonoW> : WriterTFunctor<G, W, MonG>, Applicative where MonG : Monad, MonG.F == G, MonoW : Monoid, MonoW.A == W {
-    
-    fileprivate let monad : MonG
-    fileprivate let monoid : MonoW
-    
-    public init(_ monad : MonG, _ monoid : MonoW) {
-        self.monad = monad
-        self.monoid = monoid
-        super.init(monad)
-    }
-    
-    public func pure<A>(_ a: A) -> WriterTOf<G, W, A> {
-        return WriterT(monad.pure((monoid.empty, a)))
-    }
-    
-    public func ap<A, B>(_ fa: WriterTOf<G, W, A>, _ ff: WriterTOf<G, W, (A) -> B>) -> WriterTOf<G, W, B> {
-        return WriterT.fix(fa).ap(WriterT.fix(ff), monoid, monad)
+// MARK: Functions for `WriterT` when the effect has an instance of `Applicative` and the accumulator type has an instance of `Monoid`
+extension WriterT where F: Applicative, W: Monoid {
+    /// Creates a `WriterT` from an initial value for the result.
+    ///
+    /// - Parameter a: Initial value for the result.
+    /// - Returns: A `WriterT` wrapping the provided value and using the empty value of the `Monoid` for the accumulator.
+    public static func value(_ a : A) -> WriterT<F, W, A> {
+        return WriterT.put(a, W.empty())
     }
 }
 
-public class WriterTMonad<G, W, MonG, MonoW> : WriterTApplicative<G, W, MonG, MonoW>, Monad where MonG : Monad, MonG.F == G, MonoW : Monoid, MonoW.A == W {
-    
-    public func flatMap<A, B>(_ fa: WriterTOf<G, W, A>, _ f: @escaping (A) -> WriterTOf<G, W, B>) -> WriterTOf<G, W, B> {
-        return WriterT.fix(fa).flatMap({ a in WriterT.fix(f(a)) }, monoid, monad)
+// MARK: Functions for `WriterT` when the effect has an instance of `Monad`
+extension WriterT where F: Monad {
+    /// Transforms the accumulator and result values using a provided function.
+    ///
+    /// - Parameter f: Transforming function.
+    /// - Returns: A `WriterT` where the original values have been transformed using the provided function.
+    public func transform<B, U>(_ f: @escaping ((W, A)) -> (U, B)) -> WriterT<F, U, B> {
+        return WriterT<F, U, B>(value.flatMap { pair in F.pure(f(pair)) })
     }
-    
-    public func tailRecM<A, B>(_ a: A, _ f: @escaping (A) -> WriterTOf<G, W, Either<A, B>>) -> WriterTOf<G, W, B> {
-        return WriterT.tailRecM(a, f, monad)
-    }
-}
 
-public class WriterTMonadFilter<G, W, MonFilG, MonoW> : WriterTMonad<G, W, MonFilG, MonoW>, MonadFilter where MonFilG : MonadFilter, MonFilG.F == G, MonoW : Monoid, MonoW.A == W {
+    /// Transforms the accumulator using the provided function.
+    ///
+    /// - Parameter f: Transforming function.
+    /// - Returns: A `WriterT` with the same result as the original one, and the transformed accumulator.
+    public func mapAcc<U>(_ f: @escaping (W) -> U) -> WriterT<F, U, A> {
+        return transform({ pair in (f(pair.0), pair.1) })
+    }
 
-    private let monadFilter : MonFilG
-    
-    override public init(_ monadFilter : MonFilG, _ monoid : MonoW) {
-        self.monadFilter = monadFilter
-        super.init(monadFilter, monoid)
+    /// Transforms the accumulator and result values using two functions.
+    ///
+    /// - Parameters:
+    ///   - g: Transforming function for the accumulator.
+    ///   - f: Transforming function for the result.
+    /// - Returns: A `WriterT` where the original values have been transformed using the provided functions.
+    public func bimap<B, U>(_ g: @escaping (W) -> U, _ f: @escaping (A) -> B) -> WriterT<F, U, B> {
+        return transform({ pair in (g(pair.0), f(pair.1))})
     }
-    
-    public func empty<A>() -> WriterTOf<G, W, A> {
-        return WriterT(monadFilter.empty())
-    }
-}
 
-public class WriterTSemigroupK<G, W, SemiKG> : SemigroupK where SemiKG : SemigroupK, SemiKG.F == G {
-    public typealias F = WriterTPartial<G, W>
-    
-    private let semigroupK : SemiKG
-    
-    public init(_ semigroupK : SemiKG) {
-        self.semigroupK = semigroupK
+    /// Flatmaps the provided function to the nested tuple.
+    ///
+    /// - Parameter f: Function for the flatmap operation.
+    /// - Returns: Result of flatmapping the provided function to the nested values, wrapped in the effect.
+    public func subflatMap<B>(_ f: @escaping (A) -> (W, B)) -> WriterT<F, W, B> {
+        return transform({ pair in f(pair.1) })
     }
-    
-    public func combineK<A>(_ x: WriterTOf<G, W, A>, _ y: WriterTOf<G, W, A>) -> WriterTOf<G, W, A> {
-        return WriterT.fix(x).combineK(WriterT.fix(y), semigroupK)
-    }
-}
 
-public class WriterTMonoidK<G, W, MonoKG> : WriterTSemigroupK<G, W, MonoKG>, MonoidK where MonoKG : MonoidK, MonoKG.F == G {
-    
-    private let monoidK : MonoKG
-    
-    override public init(_ monoidK : MonoKG) {
-        self.monoidK = monoidK
-        super.init(monoidK)
+    /// Swaps the result and accumulator values.
+    ///
+    /// - Returns: A `WriterT` where the accumulator is the original result value and vice versa.
+    public func swap() -> WriterT<F, A, W> {
+        return transform({ pair in (pair.1, pair.0) })
     }
-    
-    public func emptyK<A>() -> WriterTOf<G, W, A> {
-        return WriterT(monoidK.emptyK())
-    }
-}
 
-public class WriterTMonadWriter<G, V, MonG, MonoW> : WriterTMonad<G, V, MonG, MonoW>, MonadWriter where MonG : Monad, MonG.F == G, MonoW : Monoid, MonoW.A == V {
-    public typealias W = V
-    
-    public func writer<A>(_ aw: (V, A)) -> WriterTOf<G, V, A> {
-        return WriterT.put2(aw.1, aw.0, monad)
-    }
-    
-    public func listen<A>(_ fa: WriterTOf<G, V, A>) -> WriterTOf<G, V, (V, A)> {
-        return WriterT(monad.flatMap(WriterT.fix(fa).content(self.monad), { a in
-            self.monad.map(WriterT.fix(fa).write(self.monad), { l in
+    /// Runs this effect and pairs the result with the accumulator for a new result.
+    ///
+    /// - Returns: A `WriterT` where the result is paired with the accumulator.
+    public func listen() -> Kind<WriterTPartial<F, W>, (W, A)> {
+        return WriterT<F, W, (W, A)>(content().flatMap { a in
+            self.write().map { l in
                 (l, (l, a))
-            })
+            }
+        })
+    }
+}
+
+// MARK: Functions for `WriterT` when the effect has an instance of `Monad` and the accumulator type has an instance of `Semigroup`
+extension WriterT where F: Monad, W: Semigroup {
+    /// Combines the accumulator with a new value.
+    ///
+    /// - Parameter w: New value to combine the accumulator with.
+    /// - Returns: A `WriterT` with the same result and combined accumulator.
+    public func tell(_ w: W) -> WriterT<F, W, A> {
+        return mapAcc({ inW in inW.combine(w) })
+    }
+}
+
+// MARK: Functions for `WriterT` when the effect has an instance of `Monad` and the accumulator type has an instance of `Monoid`
+extension WriterT where F: Monad, W: Monoid {
+    /// Flatmaps a function that produces an effect and lifts it back to `WriterT`.
+    ///
+    /// - Parameter f: A function producing an effect.
+    /// - Returns: Result of flatmapping and lifting the function on this value.
+    public func semiflatMap<B>(_ f: @escaping (A) -> Kind<F, B>) -> WriterT<F, W, B> {
+        return WriterT<F, W, B>.fix(flatMap({ a in self.liftF(f(a)) }))
+    }
+
+    /// Resets the accumulator to the empty value of the `Monoid`.
+    ///
+    /// - Returns: A `WriterT` value with an empty accumulator and the same result value.
+    public func reset() -> WriterT<F, W, A>  {
+        return mapAcc(constant(W.empty()))
+    }
+}
+
+// MARK: Instance of `EquatableK` for `WriterT`
+extension WriterTPartial: EquatableK where F: EquatableK & Functor, W: Equatable {
+    public static func eq<A>(_ lhs: Kind<WriterTPartial<F, W>, A>, _ rhs: Kind<WriterTPartial<F, W>, A>) -> Bool where A : Equatable {
+        let wl0 = WriterT.fix(lhs).value.map { t in t.0 }
+        let wl1 = WriterT.fix(lhs).value.map { t in t.1 }
+        let wr0 = WriterT.fix(rhs).value.map { t in t.0 }
+        let wr1 = WriterT.fix(rhs).value.map { t in t.1 }
+        return wl0 == wr0 && wl1 == wr1
+    }
+}
+
+// MARK: Instance of `Invariant` for `WriterT`
+extension WriterTPartial: Invariant where F: Functor {}
+
+// MARK: Instance of `Functor` for `WriterT`
+extension WriterTPartial: Functor where F: Functor {
+    public static func map<A, B>(_ fa: Kind<WriterTPartial<F, W>, A>, _ f: @escaping (A) -> B) -> Kind<WriterTPartial<F, W>, B> {
+        let wa = WriterT.fix(fa)
+        return WriterT(wa.value.map { pair in (pair.0, f(pair.1)) })
+    }
+}
+
+// MARK: Instance of `Applicative` for `WriterT`
+extension WriterTPartial: Applicative where F: Monad, W: Monoid {
+    public static func pure<A>(_ a: A) -> Kind<WriterTPartial<F, W>, A> {
+        return WriterT(F.pure((W.empty(), a)))
+    }
+}
+
+// MARK: Instance of `Selective` for `WriterT`
+extension WriterTPartial: Selective where F: Monad, W: Monoid {}
+
+// MARK: Instance of `Monad` for `WriterT`
+extension WriterTPartial: Monad where F: Monad, W: Monoid {
+    public static func flatMap<A, B>(_ fa: Kind<WriterTPartial<F, W>, A>, _ f: @escaping (A) -> Kind<WriterTPartial<F, W>, B>) -> Kind<WriterTPartial<F, W>, B> {
+        let wa = WriterT.fix(fa)
+        return WriterT(wa.value.flatMap { pair in
+            WriterT.fix(f(pair.1)).value.map { pair2 in
+                (pair.0.combine(pair2.0), pair2.1)
+            }
+        })
+    }
+
+    public static func tailRecM<A, B>(_ a: A, _ f: @escaping (A) -> Kind<WriterTPartial<F, W>, Either<A, B>>) -> Kind<WriterTPartial<F, W>, B> {
+        return WriterT(F.tailRecM(a, { inA in
+            WriterT.fix(f(inA)).value.map { pair in
+                pair.1.fold(Either.left,
+                            { b in Either.right((pair.0, b)) })
+            }
         }))
     }
-    
-    public func pass<A>(_ fa: WriterTOf<G, V, ((V) -> V, A)>) -> WriterTOf<G, V, A> {
-        return WriterT<G, V, A>.pass(WriterT.fix(fa), monad)
+}
+
+// MARK: Instance of `FunctorFilter` for `WriterT`
+extension WriterTPartial: FunctorFilter where F: MonadFilter, W: Monoid {}
+
+// MARK: Instance of `MonadFilter` for `WriterT`
+extension WriterTPartial: MonadFilter where F: MonadFilter, W: Monoid {
+    public static func empty<A>() -> Kind<WriterTPartial<F, W>, A> {
+        return WriterT(F.empty())
     }
 }
 
-public class WriterTEq<F, W, B, EqF> : Eq where EqF : Eq, EqF.A == Kind<F, (W, B)> {
-    public typealias A = WriterTOf<F, W, B>
-    
-    private let eq : EqF
-    
-    public init(_ eq : EqF) {
-        self.eq = eq
-    }
-    
-    public func eqv(_ a: WriterTOf<F, W, B>, _ b: WriterTOf<F, W, B>) -> Bool {
-        let a = WriterT.fix(a)
-        let b = WriterT.fix(b)
-        return eq.eqv(a.value, b.value)
+// MARK: Instance of `SemigroupK` for `WriterT`
+extension WriterTPartial: SemigroupK where F: SemigroupK {
+    public static func combineK<A>(_ x: Kind<WriterTPartial<F, W>, A>, _ y: Kind<WriterTPartial<F, W>, A>) -> Kind<WriterTPartial<F, W>, A> {
+        return WriterT(WriterT.fix(x).value.combineK(WriterT.fix(y).value))
     }
 }
 
+// MARK: Instance of `MonoidK` for `WriterT`
+extension WriterTPartial: MonoidK where F: MonoidK {
+    public static func emptyK<A>() -> Kind<WriterTPartial<F, W>, A> {
+        return WriterT(F.emptyK())
+    }
+}
 
+// MARK: Instance of `MonadWriter` for `WriterT`
+extension WriterTPartial: MonadWriter where F: Monad, W: Monoid {
+    public static func writer<A>(_ aw: (W, A)) -> Kind<WriterTPartial<F, W>, A> {
+        return WriterT.put(aw.1, aw.0)
+    }
 
+    public static func listen<A>(_ fa: Kind<WriterTPartial<F, W>, A>) -> Kind<WriterTPartial<F, W>, (W, A)> {
+        return WriterT(WriterT.fix(fa).content().flatMap { a in
+            WriterT.fix(fa).write().map { l in
+                (l, (l, a))
+            }
+        })
+    }
 
-
-
-
-
+    public static func pass<A>(_ fa: Kind<WriterTPartial<F, W>, ((W) -> W, A)>) -> Kind<WriterTPartial<F, W>, A> {
+        let wa = WriterT.fix(fa)
+        return WriterT(wa.content().flatMap { tuple2FA in
+            wa.write().map { l in
+                (tuple2FA.0(l), tuple2FA.1)
+            }
+        })
+    }
+}

@@ -1,59 +1,15 @@
 import Foundation
 
-public class AndSemigroup : Semigroup {
-    public typealias A = Bool
-    
-    public func combine(_ a: Bool, _ b: Bool) -> Bool {
-        return a && b
+/// Instance of `Semigroup` for `Bool`. Uses conjunction as combination of elements.
+extension Bool: Semigroup {
+    public func combine(_ other: Bool) -> Bool {
+        return self && other
     }
 }
 
-public class AndMonoid : AndSemigroup, Monoid {
-    public var empty : Bool {
+/// Instance of `Monoid` for `Bool`. Uses conjunction as combination of elements and `true` as empty element.
+extension Bool: Monoid {
+    public static func empty() -> Bool {
         return true
-    }
-}
-
-public class OrSemigroup : Semigroup {
-    public typealias A = Bool
-    
-    public func combine(_ a: Bool, _ b: Bool) -> Bool {
-        return a || b
-    }
-}
-
-public class OrMonoid : OrSemigroup, Monoid {
-    public var empty : Bool {
-        return false
-    }
-}
-
-public class BoolEq : Eq {
-    public typealias A = Bool
-    
-    public func eqv(_ a: Bool, _ b: Bool) -> Bool {
-        return a == b
-    }
-}
-
-public extension Bool {
-    public static var andSemigroup : AndSemigroup {
-        return AndSemigroup()
-    }
-    
-    public static var andMonoid : AndMonoid {
-        return AndMonoid()
-    }
-    
-    public static var orSemigroup : OrSemigroup {
-        return OrSemigroup()
-    }
-    
-    public static var orMonoid : OrMonoid {
-        return OrMonoid()
-    }
-    
-    public static var eq : BoolEq {
-        return BoolEq()
     }
 }

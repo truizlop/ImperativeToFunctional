@@ -1,24 +1,30 @@
 import Foundation
 
-public protocol MonoidK : SemigroupK {
-    func emptyK<A>() -> Kind<F, A>
+/// A MonoidK is a `SemigroupK` that also has an empty element.
+public protocol MonoidK: SemigroupK {
+    /// Empty element.
+    ///
+    /// This element must obey the following laws:
+    ///
+    ///     combineK(fa, emptyK()) == combineK(emptyK(), fa) == fa
+    ///
+    /// - Returns: A value representing the empty element of this MonoidK instance.
+    static func emptyK<A>() -> Kind<Self, A>
 }
 
-public extension MonoidK {
-    func algebra<B>() -> MonoidAlgebra<F, B> {
-        return MonoidAlgebra(combineK: self.combineK, emptyK: self.emptyK)
-    }
-}
+// MARK: Syntax for MonoidK
 
-public class MonoidAlgebra<F, B> : SemigroupAlgebra<F, B>, Monoid {
-    private let emptyK : () -> Kind<F, B>
-    
-    init(combineK: @escaping (Kind<F, B>, Kind<F, B>) -> Kind<F, B>, emptyK : @escaping () -> Kind<F, B>) {
-        self.emptyK = emptyK
-        super.init(combineK: combineK)
-    }
-    
-    public var empty: Kind<F, B> {
-        return emptyK()
+public extension Kind where F: MonoidK {
+    /// Empty element.
+    ///
+    /// This element must obey the following laws:
+    ///
+    ///     combineK(fa, emptyK()) == combineK(emptyK(), fa) == fa
+    ///
+    /// This is a convenience method to call `MonoidK.emptyK` as a static method of this type.
+    ///
+    /// - Returns: A value representing the empty element of this MonoidK instance.
+    static func emptyK() -> Kind<F, A> {
+        return F.emptyK()
     }
 }

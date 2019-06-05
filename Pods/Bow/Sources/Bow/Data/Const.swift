@@ -1,180 +1,133 @@
 import Foundation
 
-public class ForConst {}
-public typealias ConstOf<A, T> = Kind2<ForConst, A, T>
-public typealias ConstPartial<A> = Kind<ForConst, A>
+/// Witness for the `Const<A, T>` data type. To be used in simulated Higher Kinded Types.
+public final class ForConst {}
 
-public class Const<A, T> : ConstOf<A, T> {
-    public let value : A
-    
-    public static func pure(_ a : A) -> Const<A, T> {
-        return Const<A, T>(a)
-    }
-    
-    public static func fix(_ fa : ConstOf<A, T>) -> Const<A, T>{
+/// Partial application of the Const type constructor, omitting the last parameter.
+public final class ConstPartial<A>: Kind<ForConst, A> {}
+
+/// Higher Kinded Type alias to improve readability over `Kind<ConstPartial<A>, T>`
+public typealias ConstOf<A, T> = Kind<ConstPartial<A>, T>
+
+/// Constant data type. Represents a container of two types, holding a value of the left type that remains constant, regardless of the transformation applied to it.
+public final class Const<A, T>: ConstOf<A, T> {
+    /// Constant value wrapped in this data type
+    public let value: A
+
+    /// Safe downcast.
+    ///
+    /// - Parameter fa: Value in the higher-kind form.
+    /// - Returns: Value cast to Const.
+    public static func fix(_ fa: ConstOf<A, T>) -> Const<A, T> {
         return fa as! Const<A, T>
     }
     
-    public init(_ value : A) {
+    /// Initializes a constant value.
+    ///
+    /// - Parameter value: Constant value to be wrapped.
+    public init(_ value: A) {
         self.value = value
     }
     
+    /// Changes the type of the right type argument associated to this constant value.
+    ///
+    /// - Returns: The same wrapped value, changing the right type argument.
     public func retag<U>() -> Const<A, U> {
         return Const<A, U>(value)
     }
-    
-    public func traverse<F, U, Appl>(_ f : (T) -> Kind<F, U>, _ applicative : Appl) -> Kind<F, ConstOf<A, U>> where Appl : Applicative, Appl.F == F {
-        return applicative.pure(retag())
-    }
-    
-    public func traverseFilter<F, U, Appl>(_ f : (T) -> Kind<F, OptionOf<U>>, _ applicative : Appl) -> Kind<F, ConstOf<A, U>> where Appl : Applicative, Appl.F == F {
-        return applicative.pure(retag())
-    }
-    
-    public func combine<SemiG>(_ other : Const<A, T>, _ semigroup : SemiG) -> Const<A, T> where SemiG : Semigroup, SemiG.A == A {
-        return Const<A, T>(semigroup.combine(self.value, other.value))
-    }
-    
-    public func ap<U, SemiG>(_ ff : Const<A, (T) -> U>, _ semigroup : SemiG) -> Const<A, U> where SemiG : Semigroup, SemiG.A == A {
-        return ff.retag().combine(self.retag(), semigroup)
-    }
 }
 
-extension Const : CustomStringConvertible {
+/// Safe downcast.
+///
+/// - Parameter fa: Value in higher-kind form.
+/// - Returns: Value cast to Const.
+public postfix func ^<A, T>(_ fa: ConstOf<A, T>) -> Const<A, T> {
+    return Const.fix(fa)
+}
+
+// MARK: Conformance to `CustomStringConvertible`
+extension Const: CustomStringConvertible {
     public var description : String {
         return "Const(\(value))"
     }
 }
 
-extension Const : CustomDebugStringConvertible where A : CustomDebugStringConvertible{
+// MARK: Conformance to `CustomDebugStringConvertible`
+extension Const: CustomDebugStringConvertible where A: CustomDebugStringConvertible{
     public var debugDescription: String {
         return "Const(\(value.debugDescription))"
     }
 }
 
-public extension Const {
-    public static func functor() -> ConstFunctor<A> {
-        return ConstFunctor<A>()
-    }
-    
-    public static func applicative<Mono>(_ monoid : Mono) -> ConstApplicative<A, Mono> {
-        return ConstApplicative<A, Mono>(monoid)
-    }
-    
-    public static func semigroup<SemiG>(_ semigroup : SemiG) -> ConstSemigroup<A, T, SemiG> {
-        return ConstSemigroup<A, T, SemiG>(semigroup)
-    }
-    
-    public static func monoid<Mono>(_ monoid : Mono) -> ConstMonoid<A, T, Mono> {
-        return ConstMonoid<A, T, Mono>(monoid)
-    }
-    
-    public static func foldable() -> ConstFoldable<A> {
-        return ConstFoldable<A>()
-    }
-    
-    public static func traverse() -> ConstTraverse<A> {
-        return ConstTraverse<A>()
-    }
-    
-    public static func traverseFilter() -> ConstTraverseFilter<A> {
-        return ConstTraverseFilter<A>()
-    }
-    
-    public static func eq<EqA>(_ eqa : EqA) -> ConstEq<A, T, EqA> {
-        return ConstEq<A, T, EqA>(eqa)
+// MARK: Instance of `EquatableK` for `Const`
+extension ConstPartial: EquatableK where A: Equatable {
+    public static func eq<T>(_ lhs: Kind<ConstPartial<A>, T>, _ rhs: Kind<ConstPartial<A>, T>) -> Bool where T: Equatable {
+        return Const.fix(lhs).value == Const.fix(rhs).value
     }
 }
 
-public class ConstFunctor<R> : Functor {
-    public typealias F = ConstPartial<R>
-    
-    public func map<A, B>(_ fa: ConstOf<R, A>, _ f: @escaping (A) -> B) -> ConstOf<R, B> {
+// MARK: Instance of `Functor` for `Const`
+extension ConstPartial: Functor {
+    public static func map<C, B>(_ fa: Kind<ConstPartial<A>, C>, _ f: @escaping (C) -> B) -> Kind<ConstPartial<A>, B> {
         return Const.fix(fa).retag()
     }
 }
 
-public class ConstApplicative<R, Mono> : ConstFunctor<R>, Applicative where Mono : Monoid, Mono.A == R {
-    private let monoid : Mono
-    
-    public init(_ monoid : Mono) {
-        self.monoid = monoid
+// MARK: Instance of `Applicative` for `Const`
+extension ConstPartial: Applicative where A: Monoid {
+    public static func pure<C>(_ a: C) -> Kind<ConstPartial<A>, C> {
+        return Const<A, C>(A.empty())
     }
-    
-    public func pure<A>(_ a: A) -> ConstOf<R, A> {
-        return ConstMonoid(self.monoid).empty
-    }
-    
-    public func ap<A, B>(_ fa: ConstOf<R, A>, _ ff: ConstOf<R, (A) -> B>) -> ConstOf<R, B> {
-        return Const.fix(fa).ap(Const.fix(ff), monoid)
+
+    public static func ap<C, B>(_ ff: Kind<ConstPartial<A>, (C) -> B>, _ fa: Kind<ConstPartial<A>, C>) -> Kind<ConstPartial<A>, B> {
+        let cf: Const<A, B> = Const.fix(ff).retag()
+        let ca: Const<A, B> = Const.fix(fa).retag()
+        return cf.combine(ca)
     }
 }
 
-public class ConstSemigroup<R, S, SemiG> : Semigroup where SemiG : Semigroup, SemiG.A == R {
-    public typealias A = ConstOf<R, S>
-    private let semigroup : SemiG
-    
-    public init(_ semigroup : SemiG) {
-        self.semigroup = semigroup
-    }
-    
-    public func combine(_ a: ConstOf<R, S>, _ b: ConstOf<R, S>) -> ConstOf<R, S> {
-        return Const.fix(a).combine(Const.fix(b), semigroup)
-    }
-}
-
-public class ConstMonoid<R, S, Mono> : ConstSemigroup<R, S, Mono>, Monoid where Mono : Monoid, Mono.A == R {
-    private let monoid : Mono
-    
-    override public init(_ monoid : Mono) {
-        self.monoid = monoid
-        super.init(monoid)
-    }
-    
-    public var empty: ConstOf<R, S> {
-        return Const(monoid.empty)
-    }
-}
-
-public class ConstFoldable<R> : Foldable {
-    public typealias F = ConstPartial<R>
-    
-    public func foldL<A, B>(_ fa: ConstOf<R, A>, _ b: B, _ f: @escaping (B, A) -> B) -> B {
+// MARK: Instance of `Foldable` for `Const`
+extension ConstPartial: Foldable {
+    public static func foldLeft<C, B>(_ fa: Kind<ConstPartial<A>, C>, _ b: B, _ f: @escaping (B, C) -> B) -> B {
         return b
     }
-    
-    public func foldR<A, B>(_ fa: ConstOf<R, A>, _ b: Eval<B>, _ f: @escaping (A, Eval<B>) -> Eval<B>) -> Eval<B> {
+
+    public static func foldRight<C, B>(_ fa: Kind<ConstPartial<A>, C>, _ b: Eval<B>, _ f: @escaping (C, Eval<B>) -> Eval<B>) -> Eval<B> {
         return b
     }
 }
 
-public class ConstTraverse<R> : ConstFoldable<R>, Traverse {
-    public func traverse<G, A, B, Appl>(_ fa: ConstOf<R, A>, _ f: @escaping (A) -> Kind<G, B>, _ applicative: Appl) -> Kind<G, ConstOf<R, B>> where G == Appl.F, Appl : Applicative {
-        return Const.fix(fa).traverse(f, applicative)
+// MARK: Instance of `Traverse` for `Const`
+extension ConstPartial: Traverse {
+    public static func traverse<G: Applicative, C, B>(_ fa: Kind<ConstPartial<A>, C>, _ f: @escaping (C) -> Kind<G, B>) -> Kind<G, Kind<ConstPartial<A>, B>> {
+        return G.pure(Const.fix(fa).retag())
     }
 }
 
-public class ConstTraverseFilter<R> : ConstTraverse<R>, TraverseFilter {
-    public func traverseFilter<A, B, G, Appl>(_ fa: ConstOf<R, A>, _ f: @escaping (A) -> Kind<G, OptionOf<B>>, _ applicative: Appl) -> Kind<G, ConstOf<R, B>> where G == Appl.F, Appl : Applicative {
-        return Const.fix(fa).traverseFilter(f, applicative)
+// MARK: Instance of `FunctorFilter` for `Const`
+extension ConstPartial: FunctorFilter {}
+
+// MARK: Instance of `TraverseFilter` for `Const`
+extension ConstPartial: TraverseFilter {
+    public static func traverseFilter<C, B, G: Applicative>(_ fa: Kind<ConstPartial<A>, C>, _ f: @escaping (C) -> Kind<G, Kind<ForOption, B>>) -> Kind<G, Kind<ConstPartial<A>, B>> {
+        return G.pure(Const.fix(fa).retag())
+    }
+
+    public static func mapFilter<C, B>(_ fa: Kind<ConstPartial<A>, C>, _ f: @escaping (C) -> Kind<ForOption, B>) -> Kind<ConstPartial<A>, B> {
+        return traverseFilter(fa, { a in Id<OptionOf<B>>.pure(f(a)) }).extract()
     }
 }
 
-public class ConstEq<R, S, EqR> : Eq where EqR : Eq, EqR.A == R {
-    public typealias A = ConstOf<R, S>
-    private let eqr : EqR
-    
-    public init(_ eqr : EqR) {
-        self.eqr = eqr
-    }
-    
-    public func eqv(_ a: ConstOf<R, S>, _ b: ConstOf<R, S>) -> Bool {
-        return eqr.eqv(Const.fix(a).value, Const.fix(b).value)
+// MARK: Instance of `Semigroup` for `Const`
+extension Const: Semigroup where A: Semigroup {
+    public func combine(_ other : Const<A, T>) -> Const<A, T> {
+        return Const<A, T>(self.value.combine(other.value))
     }
 }
 
-extension Const : Equatable where A : Equatable {
-    public static func ==(lhs : Const<A, T>, rhs : Const<A, T>) -> Bool {
-        return lhs.value == rhs.value
+// MARK: Instance of `Monoid` for `Const`
+extension Const: Monoid where A: Monoid {
+    public static func empty() -> Const<A, T> {
+        return Const(A.empty())
     }
 }

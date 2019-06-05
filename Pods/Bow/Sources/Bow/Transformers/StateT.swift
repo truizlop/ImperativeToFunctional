@@ -1,273 +1,260 @@
 import Foundation
 
-public class ForStateT {}
-public typealias StateTOf<F, S, A> = Kind3<ForStateT, F, S, A>
-public typealias StateTPartial<F, S> = Kind2<ForStateT, F, S>
+/// Witness for the `StateT<F, S, A>` data type. To be used in simulated Higher Kinded Types.
+public final class ForStateT {}
 
-public class StateT<F, S, A> : StateTOf<F, S, A> {
-    private let runF : Kind<F, (S) -> Kind<F, (S,A)>>
-    
-    public static func lift<Mon>(_ fa : Kind<F, A>, _ monad : Mon) -> StateT<F, S, A> where Mon : Monad, Mon.F == F {
-        return StateT(monad.pure({ s in monad.map(fa, { a in (s, a) }) }))
+/// Partial application of the StateT type constructor, omitting the last type argument.
+public final class StateTPartial<F, S>: Kind2<ForStateT, F, S> {}
+
+/// Higher Kinded Type alias to improve readability over `Kind<StateTPartial<F, S>, A>`
+public typealias StateTOf<F, S, A> = Kind<StateTPartial<F, S>, A>
+
+/// StateT transformer represents operations that need to write and read a state through a computation or effect.
+///
+/// Some computations may not require the full power of this transformer:
+///     - For read-only state, see `ReaderT` / `Kleisli`.
+///     - To accumulate a value without using it on the way, see `WriterT`.
+public class StateT<F, S, A>: StateTOf<F, S, A> {
+    fileprivate let runF: Kind<F, (S) -> Kind<F, (S, A)>>
+
+    /// Safe downcast.
+    ///
+    /// - Parameter fa: Value in the higher-kind form.
+    /// - Returns: Value cast to StateT.
+    public static func fix(_ fa: StateTOf<F, S, A>) -> StateT<F, S, A> {
+        return fa as! StateT<F, S, A>
     }
-    
-    public static func get<Appl>(_ applicative : Appl) -> StateT<F, S, S> where Appl : Applicative, Appl.F == F {
-        return StateT<F, S, S>(applicative.pure({ s in applicative.pure((s, s)) }))
+
+    /// Initializes a `StateT`.
+    ///
+    /// - Parameter runF: An effect describing a function that receives a state and produces an effect that updates the state and productes a value.
+    public init(_ runF: Kind<F, (S) -> Kind<F, (S, A)>>) {
+        self.runF = runF
     }
-    
-    public static func set<Appl>(_ s : S, _ applicative : Appl) -> StateT<F, S, ()> where Appl : Applicative, Appl.F == F {
-        return StateT<F, S, ()>(applicative.pure({ _ in applicative.pure((s, ())) }))
+}
+
+/// Safe downcast.
+///
+/// - Parameter fa: Value in higher-kind form.
+/// - Returns: Value cast to StateT.
+public postfix func ^<F, S, A>(_ fa : StateTOf<F, S, A>) -> StateT<F, S, A> {
+    return StateT.fix(fa)
+}
+
+// MARK: Convenience functions when the effect is `Id`
+public extension StateT where F == ForId {
+    /// Runs this computation provided an initial state.
+    ///
+    /// - Parameter initialState: Initial state for this computation.
+    /// - Returns: A pair with the updated state and the produced value.
+    func run(_ initialState: S) -> (S, A) {
+        return Id.fix(self.runM(initialState)).value
     }
-    
-    public static func tailRecM<B, Mon>(_ a : A, _ f : @escaping (A) -> Kind<StateTPartial<F, S>, Either<A, B>>, _ monad : Mon) -> StateT<F, S, B> where Mon : Monad, Mon.F == F {
-        return StateT<F, S, B>(monad.pure({ s in
-            monad.tailRecM((s, a), { pair in
-                monad.map(StateT<F, S, Either<A, B>>.fix(f(pair.1)).runM(pair.0, monad), { sss, ab in
+
+    /// Runs this computation provided an initial state.
+    ///
+    /// - Parameter s: Initial state for this computation.
+    /// - Returns: Produced value from this computation.
+    func runA(_ s: S) -> A {
+        return run(s).1
+    }
+
+    /// Runs this computation provided an initial state.
+    ///
+    /// - Parameter s: Initial state for this computation.
+    /// - Returns: Updated state after running the computation.
+    func runS(_ s: S) -> S {
+        return run(s).0
+    }
+}
+
+// MARK: Functions for `StateT` when the effect has an instance of `Functor`
+extension StateT where F: Functor {
+    /// Transforms the return value and final state of a computation using a provided function.
+    ///
+    /// - Parameter f: Transforming function.
+    /// - Returns: An `StateT` where the final state and produced value have been transformed using the provided function.
+    public func transform<B>(_ f: @escaping (S, A) -> (S, B)) -> StateT<F, S, B> {
+        return StateT<F, S, B>(
+            runF.map { sfsa in
+                sfsa >>> F.lift(f)
+            }
+        )
+    }
+}
+
+// MARK: Functions for `StateT` when the effect has an instance of `Monad`
+extension StateT where F: Monad {
+    /// Lifts an effect by wrapping the contained value into a function that depends on some state.
+    ///
+    /// - Parameter fa: Value to be lifted.
+    /// - Returns: A `StateT` that produces the contained value in the original effect, preserving the state.
+    public static func liftF(_ fa: Kind<F, A>) -> StateT<F, S, A> {
+        return StateT(F.pure({ s in fa.map { a in (s, a) } }))
+    }
+
+    /// Runs this computation using the provided initial state.
+    ///
+    /// - Parameter s: Initial state to run this computation.
+    /// - Returns: Result of running this computation with the provided state, wrapped in the effect.
+    public func runA(_ s: S) -> Kind<F, A> {
+        return runM(s).map{ (_, a) in a }
+    }
+
+    /// Runs this computation using the provided initial state.
+    ///
+    /// - Parameter s: Initial state to run this computation.
+    /// - Returns: New state after running this computation with the provided state, wrapped in the effect.
+    public func runS(_ s: S) -> Kind<F, S> {
+        return runM(s).map { (s, _) in s }
+    }
+
+    /// Runs this computation using the provided initial state.
+    ///
+    /// - Parameter initial: Initial state to run this computation.
+    /// - Returns: A pair with the new state and produced value, wrapped in the effect.
+    public func runM(_ initial: S) -> Kind<F, (S, A)> {
+        return runF.flatMap { f in f(initial) }
+    }
+
+    /// Zips this computation with another one depending on the same state and effect types and combines the produced values using the provided function.
+    ///
+    /// - Parameters:
+    ///   - sb: Another state computation.
+    ///   - f: Combining function.
+    /// - Returns: An `StateT` with the combination of the results of the two state computations, using the provided function.
+    public func map2<B, Z>(_ sb: StateT<F, S, B>, _ f: @escaping (A, B) -> Z) -> StateT<F, S, Z> {
+        return StateT<F, S, Z>(F.map(runF, sb.runF, { ssa, ssb in
+            ssa >>> { fsa in
+                F.flatMap(fsa) { (s, a) in
+                    F.map(ssb(s), { (s, b) in (s, f(a, b)) })
+                }
+            }
+        }))
+    }
+
+    /// Flatmaps a function that produces an effect and lifts if back to `StateT`.
+    ///
+    /// - Parameter f: A function producing an effect.
+    /// - Returns: Result of flatmapping and lifting the function to this value.
+    public func semiflatMap<B>(_ f: @escaping (A) -> Kind<F, B>) -> StateT<F, S, B> {
+        return StateT<F, S, B>(
+            runF.map { sfsa in
+                sfsa >>> { fsa in
+                    fsa.flatMap { (s, a) in
+                        f(a).map { b in (s, b) }
+                    }
+                }
+            }
+        )
+    }
+}
+
+// MARK: Instance of `Invariant` for `StateT`
+extension StateTPartial: Invariant where F: Functor {}
+
+// MARK: Instance of `Functor` for `StateT`
+extension StateTPartial: Functor where F: Functor {
+    public static func map<A, B>(_ fa: Kind<StateTPartial<F, S>, A>, _ f: @escaping (A) -> B) -> Kind<StateTPartial<F, S>, B> {
+        return StateT.fix(fa).transform({ (s, a) in (s, f(a)) })
+    }
+}
+
+// MARK: Instance of `Applicative` for `StateT`
+extension StateTPartial: Applicative where F: Monad {
+    public static func pure<A>(_ a: A) -> Kind<StateTPartial<F, S>, A> {
+        return StateT(F.pure({ s in F.pure((s, a)) }))
+    }
+}
+
+// MARK: Instance of `Selective` for `StateT`
+extension StateTPartial: Selective where F: Monad {}
+
+// MARK: Instance of `Monad` for `StateT`
+extension StateTPartial: Monad where F: Monad {
+    public static func flatMap<A, B>(_ fa: Kind<StateTPartial<F, S>, A>, _ f: @escaping (A) -> Kind<StateTPartial<F, S>, B>) -> Kind<StateTPartial<F, S>, B> {
+        let sta = StateT.fix(fa)
+        return StateT<F, S, B>(
+            sta.runF.map { sfsa in
+                sfsa >>> { fsa in
+                    fsa.flatMap { (s, a) in
+                        StateT.fix(f(a)).runM(s)
+                    }
+                }
+            }
+        )
+    }
+
+    public static func tailRecM<A, B>(_ a: A, _ f: @escaping (A) -> Kind<StateTPartial<F, S>, Either<A, B>>) -> Kind<StateTPartial<F, S>, B> {
+        return StateT<F, S, B>(F.pure({ s in
+            F.tailRecM((s, a), { pair in
+                F.map(StateT.fix(f(pair.1)).runM(pair.0), { sss, ab in
                     ab.bimap({ left in (sss, left) }, { right in (sss, right) })
                 })
             })
         }))
     }
-    
-    public static func fix(_ fa : StateTOf<F, S, A>) -> StateT<F, S, A> {
-        return fa as! StateT<F, S, A>
+}
+
+// MARK: Instance of `MonadState` for `StateT`
+extension StateTPartial: MonadState where F: Monad {
+    public static func get() -> Kind<StateTPartial<F, S>, S> {
+        return StateT(F.pure({ s in F.pure((s, s)) }))
     }
-    
-    public init(_ runF : Kind<F, (S) -> Kind<F, (S,A)>>) {
-        self.runF = runF
+
+    public static func set(_ s: S) -> Kind<StateTPartial<F, S>, ()> {
+        return StateT(F.pure({ _ in F.pure((s, ())) } ))
     }
-    
-    public func transform<B, Func>(_ f : @escaping (S, A) -> (S, B), _ functor : Func) -> StateT<F, S, B> where Func : Functor, Func.F == F {
-        return StateT<F, S, B>(
-            functor.map(runF, { sfsa in
-                sfsa >>> { fsa in functor.map(fsa, f) }
-            })
-        )
+}
+
+// MARK: Instance of `SemigroupK` for `StateT`
+extension StateTPartial: SemigroupK where F: Monad & SemigroupK {
+    public static func combineK<A>(_ x: Kind<StateTPartial<F, S>, A>, _ y: Kind<StateTPartial<F, S>, A>) -> Kind<StateTPartial<F, S>, A> {
+        let stx = StateT.fix(x)
+        let sty = StateT.fix(y)
+        return StateT(F.pure({ s in stx.runM(s).combineK(sty.runM(s)) }))
     }
-    
-    public func map<B, Func>(_ f : @escaping (A) -> B, _ functor : Func) -> StateT<F, S, B> where Func : Functor, Func.F == F {
-        return transform({ (s, a) in (s, f(a)) }, functor)
+}
+
+// MARK: Instance of `MonoidK` for `StateT`
+extension StateTPartial: MonoidK where F: MonadCombine {
+    public static func emptyK<A>() -> Kind<StateTPartial<F, S>, A> {
+        return StateT.liftF(F.empty())
     }
-    
-    public func map2<B, Z, Mon>(_ sb : StateT<F, S, B>, _ f : @escaping (A, B) -> Z, _ monad : Mon) -> StateT<F, S, Z> where Mon : Monad, Mon.F == F {
-        return StateT<F, S, Z>(monad.map2(runF, sb.runF, { ssa, ssb in
-            ssa >>> { fsa in
-                monad.flatMap(fsa) { (s, a) in
-                    monad.map(ssb(s), { (s, b) in (s, f(a, b)) })
-                }
+}
+
+// MARK: Instance of `Alternative` for `StateT`
+extension StateTPartial: Alternative where F: MonadCombine {}
+
+// MARK: Instance of `FunctiorFilter` for `StateT`
+extension StateTPartial: FunctorFilter where F: MonadCombine {}
+
+// MARK: Instance of `MonadFilter` for `StateT`
+extension StateTPartial: MonadFilter where F: MonadCombine {}
+
+// MARK: Instance of `MonadCombine` for `StateT`
+extension StateTPartial: MonadCombine where F: MonadCombine {
+    public static func empty<A>() -> Kind<StateTPartial<F, S>, A> {
+        return StateT.liftF(F.empty())
+    }
+}
+
+// MARK: Instance of `ApplicativeError` for `StateT`
+extension StateTPartial: ApplicativeError where F: MonadError {
+    public typealias E = F.E
+
+    public static func raiseError<A>(_ e: F.E) -> Kind<StateTPartial<F, S>, A> {
+        return StateT.liftF(F.raiseError(e))
+    }
+
+    public static func handleErrorWith<A>(_ fa: Kind<StateTPartial<F, S>, A>, _ f: @escaping (F.E) -> Kind<StateTPartial<F, S>, A>) -> Kind<StateTPartial<F, S>, A> {
+        return StateT(F.pure({ s in
+            StateT.fix(fa).runM(s).handleErrorWith { e in
+                StateT.fix(f(e)).runM(s)
             }
         }))
     }
-    
-    public func map2Eval<B, Z, Mon>(_ esb : Eval<StateT<F, S, B>>, _ f : @escaping (A, B) -> Z, _ monad : Mon) -> Eval<StateT<F, S, Z>> where Mon : Monad, Mon.F == F {
-        return monad.map2Eval(runF, esb.map{ sb in sb.runF }){ ssa, ssb in
-            ssa >>> { fsa in
-                monad.flatMap(fsa) { (s, a) in
-                    monad.map(ssb(s)) { (s, b) in (s, f(a, b)) }
-                }
-            }
-        }.map{ ssz in StateT<F, S, Z>(ssz) }
-    }
-    
-    public func ap<B, Mon>(_ ff : StateT<F, S, (A) -> B>, _ monad : Mon) -> StateT<F, S, B> where Mon : Monad, Mon.F == F {
-        return ff.map2(self, { f, a in f(a) }, monad)
-    }
-    
-    public func product<B, Mon>(_ sb : StateT<F, S, B>, _ monad : Mon) -> StateT<F, S, (A, B)> where Mon : Monad, Mon.F == F {
-        return self.map2(sb, { a, b in (a, b) }, monad)
-    }
-    
-    public func flatMap<B, Mon>(_ f : @escaping (A) -> StateT<F, S, B>, _ monad : Mon) -> StateT<F, S, B> where Mon : Monad, Mon.F == F {
-        return StateT<F, S, B>(
-            monad.map(runF) { sfsa in
-                sfsa >>> { fsa in
-                    monad.flatMap(fsa) { (s, a) in
-                        f(a).runM(s, monad)
-                    }
-                }
-            }
-        )
-    }
-    
-    public func flatMapF<B, Mon>(_ f : @escaping (A) -> Kind<F, B>, _ monad : Mon) -> StateT<F, S, B> where Mon : Monad, Mon.F == F {
-        return StateT<F, S, B>(
-            monad.map(runF) { sfsa in
-                sfsa >>> { fsa in
-                    monad.flatMap(fsa) { (s, a) in
-                        monad.map(f(a), { b in (s, b) })
-                    }
-                }
-            }
-        )
-    }
-    
-    public func combineK<Mon, SemiG>(_ y : StateT<F, S, A>, _ monad : Mon, _ semigroup : SemiG) -> StateT<F, S, A> where Mon : Monad, Mon.F == F, SemiG : SemigroupK, SemiG.F == F {
-        return StateT(
-            monad.pure({ s in semigroup.combineK(self.runM(s, monad), y.runM(s, monad)) })
-        )
-    }
-    
-    public func runA<Mon>(_ s : S, _ monad : Mon) -> Kind<F, A> where Mon : Monad, Mon.F == F {
-        return monad.map(runM(s, monad)){ (_, a) in a }
-    }
-    
-    public func runS<Mon>(_ s : S, _ monad : Mon) -> Kind<F, S> where Mon : Monad, Mon.F == F {
-        return monad.map(runM(s, monad)){ (s, _) in s }
-    }
-    
-    public func runM<Mon>(_ initial : S, _ monad : Mon) -> Kind<F, (S, A)> where Mon : Monad, Mon.F == F {
-        return monad.flatMap(runF, { f in f(initial) })
-    }
 }
 
-public extension StateT {
-    public static func functor<FuncF>(_ functor : FuncF) -> StateTFunctor<F, S, FuncF> {
-        return StateTFunctor<F, S, FuncF>(functor)
-    }
-    
-    public static func applicative<MonF>(_ monad : MonF) -> StateTApplicative<F, S, MonF> {
-        return StateTApplicative<F, S, MonF>(monad)
-    }
-    
-    public static func monad<MonF>(_ monad : MonF) -> StateTMonad<F, S, MonF> {
-        return StateTMonad<F, S, MonF>(monad)
-    }
-    
-    public static func monadState<MonF>(_ monad : MonF) -> StateTMonadState<F, S, MonF> {
-        return StateTMonadState<F, S, MonF>(monad)
-    }
-    
-    public static func semigroupK<MonF, SemiKF>(_ monad : MonF, _ semigroupK : SemiKF) -> StateTSemigroupK<F, S, MonF, SemiKF> {
-        return StateTSemigroupK<F, S, MonF, SemiKF>(monad, semigroupK)
-    }
-    
-    public static func monadCombine<MonComF>(_ monadCombine : MonComF) -> StateTMonadCombine<F, S, MonComF> {
-        return StateTMonadCombine<F, S, MonComF>(monadCombine)
-    }
-    
-    public static func applicativeError<Err, MonErrF>(_ monadError : MonErrF) -> StateTMonadError<F, S, Err, MonErrF> {
-        return StateTMonadError<F, S, Err, MonErrF>(monadError)
-    }
-    
-    public static func monadError<Err, MonErrF>(_ monadError : MonErrF) -> StateTMonadError<F, S, Err, MonErrF> {
-        return StateTMonadError<F, S, Err, MonErrF>(monadError)
-    }
-}
-
-public class StateTFunctor<G, S, FuncG> : Functor where FuncG : Functor, FuncG.F == G {
-    public typealias F = StateTPartial<G, S>
-    
-    private let functor : FuncG
-    
-    public init(_ functor : FuncG) {
-        self.functor = functor
-    }
-    
-    public func map<A, B>(_ fa: StateTOf<G, S, A>, _ f: @escaping (A) -> B) -> StateTOf<G, S, B> {
-        return StateT.fix(fa).map(f, functor)
-    }
-}
-
-public class StateTApplicative<G, S, MonG> : StateTFunctor<G, S, MonG>, Applicative where MonG : Monad, MonG.F == G {
-    fileprivate let monad : MonG
-    
-    override public init(_ monad : MonG) {
-        self.monad = monad
-        super.init(monad)
-    }
-    
-    public func pure<A>(_ a: A) -> StateTOf<G, S, A> {
-        return StateT(monad.pure({ s in self.monad.pure((s, a))}))
-    }
-    
-    public func ap<A, B>(_ fa: StateTOf<G, S, A>, _ ff: StateTOf<G, S, (A) -> B>) -> StateTOf<G, S, B> {
-        return StateT.fix(fa).ap(StateT.fix(ff), monad)
-    }
-}
-
-public class StateTMonad<G, S, MonG> : StateTApplicative<G, S, MonG>, Monad where MonG : Monad, MonG.F == G {
-    
-    public func flatMap<A, B>(_ fa: StateTOf<G, S, A>, _ f: @escaping (A) -> StateTOf<G, S, B>) -> StateTOf<G, S, B> {
-        return StateT.fix(fa).flatMap({ a in StateT.fix(f(a)) }, monad)
-    }
-    
-    public func tailRecM<A, B>(_ a: A, _ f: @escaping (A) -> StateTOf<G, S, Either<A, B>>) -> StateTOf<G, S, B> {
-        return StateT.tailRecM(a, f, monad)
-    }
-}
-
-public class StateTMonadState<G, R, MonG> : StateTMonad<G, R, MonG>, MonadState where MonG : Monad, MonG.F == G {
-    public typealias S = R
-    
-    public func get() -> StateTOf<G, R, R> {
-        return StateT<G, R, R>.get(monad)
-    }
-    
-    public func set(_ s: R) -> StateTOf<G, R, ()> {
-        return StateT<G, R, Unit>.set(s, monad)
-    }
-}
-
-public class StateTSemigroupK<G, S, MonG, SemiKG> : SemigroupK where MonG : Monad, MonG.F == G, SemiKG : SemigroupK, SemiKG.F == G {
-    public typealias F = StateTPartial<G, S>
-    
-    private let monad : MonG
-    private let semigroupK : SemiKG
-    
-    public init(_ monad : MonG, _ semigroupK : SemiKG) {
-        self.monad = monad
-        self.semigroupK = semigroupK
-    }
-    
-    public func combineK<A>(_ x: StateTOf<G, S, A>, _ y: StateTOf<G, S, A>) -> StateTOf<G, S, A> {
-        return StateT.fix(x).combineK(StateT.fix(y), monad, semigroupK)
-    }
-}
-
-public class StateTMonadCombine<G, S, MonComG> : StateTMonad<G, S, MonComG>, MonadCombine where MonComG : MonadCombine, MonComG.F == G {
-    private let monadCombine : MonComG
-    
-    override public init(_ monadCombine : MonComG) {
-        self.monadCombine = monadCombine
-        super.init(monadCombine)
-    }
-    
-    public func combineK<A>(_ x: StateTOf<G, S, A>, _ y: StateTOf<G, S, A>) -> StateTOf<G, S, A> {
-        return StateT.fix(x).combineK(StateT.fix(y), monadCombine, monadCombine)
-    }
-    
-    public func empty<A>() -> StateTOf<G, S, A> {
-        return liftT(monadCombine.empty())
-    }
-    
-    public func emptyK<A>() -> StateTOf<G, S, A> {
-        return liftT(monadCombine.empty())
-    }
-    
-    func liftT<A>(_ fa : Kind<G, A>) -> StateT<G, S, A> {
-        return StateT(monad.pure({ s in self.monad.map(fa, { a in (s, a) }) }))
-    }
-}
-
-public class StateTMonadError<G, S, Err, MonErrG> : StateTMonad<G, S, MonErrG>, MonadError where MonErrG : MonadError, MonErrG.F == G, MonErrG.E == Err {
-    public typealias E = Err
-    
-    private let monadError : MonErrG
-    
-    override public init(_ monadError : MonErrG) {
-        self.monadError = monadError
-        super.init(monadError)
-    }
-    
-    public func raiseError<A>(_ e: Err) -> StateTOf<G, S, A> {
-        return StateT<G, S, A>.lift(monadError.raiseError(e), monadError)
-    }
-    
-    public func handleErrorWith<A>(_ fa: StateTOf<G, S, A>, _ f: @escaping (Err) -> StateTOf<G, S, A>) -> StateTOf<G, S, A> {
-        return StateT<G, S, A>(monadError.pure({ s in
-            self.monadError.handleErrorWith(StateT.fix(fa).runM(s, self.monadError), { e in
-                StateT.fix(f(e)).runM(s, self.monadError)
-            })
-        }))
-    }
-}
+// MARK: Instance of `MonadError` for `StateT`
+extension StateTPartial: MonadError where F: MonadError {}

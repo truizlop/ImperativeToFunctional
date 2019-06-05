@@ -1,60 +1,33 @@
 import Foundation
 
+/// Partial application of the `State` type constructor, omitting the last parameter.
 public typealias StatePartial<S> = StateTPartial<ForId, S>
+
+/// Higher Kinded Type alias to improve readability over `StateT<ForId, S, A>`.
 public typealias StateOf<S, A> = StateT<ForId, S, A>
 
-public class State<S, A> : StateOf<S, A> {
-    public static func fix(_ value : StateOf<S, A>) -> State<S, A> {
+/// State is a convenience data type over the `StateT` transformer, when the effect is `Id`.
+public class State<S, A>: StateOf<S, A> {
+    /// Safe downcast.
+    ///
+    /// - Parameter value: Value in the higher-kind form.
+    /// - Returns: Value cast to State.
+    public static func fix(_ value: StateOf<S, A>) -> State<S, A> {
         return value as! State<S, A>
     }
     
-    public init(_ run : @escaping (S) -> (S, A)) {
+    /// Initializes a `State` value.
+    ///
+    /// - Parameter run: A function that depends on a state and produces a new state and a value.
+    public init(_ run: @escaping (S) -> (S, A)) {
         super.init(Id.pure({ s in Id.pure(run(s)) }))
-    }
-    
-    public func run(_ initial : S) -> (S, A) {
-        return self.runM(initial, Id<S>.monad()).fix().extract()
-    }
-    
-    public func runA(_ s : S) -> A {
-        return run(s).1
-    }
-    
-    public func runS(_ s : S) -> S {
-        return run(s).0
-    }
-    
-    public func map<B>(_ f : @escaping (A) -> B) -> StateOf<S, B> {
-        return self.map(f, Id<A>.functor())
-    }
-    
-    public func ap<B>(_ ff : StateOf<S, (A) -> B>) -> StateOf<S, B> {
-        return self.ap(ff, Id<A>.monad())
-    }
-    
-    public func flatMap<B>(_ f : @escaping (A) -> StateOf<S, B>) -> StateOf<S, B> {
-        return self.flatMap(f, Id<A>.monad())
-    }
-    
-    public func product<B>(_ sb : State<S, B>) -> StateOf<S, (A, B)> {
-        return self.product(sb, Id<A>.monad())
     }
 }
 
-public extension State {
-    public static func functor() -> StateTFunctor<ForId, S, IdFunctor> {
-        return StateT<ForId, S, A>.functor(Id<A>.functor())
-    }
-    
-    public static func applicative() -> StateTApplicative<ForId, S, IdMonad> {
-        return StateT<ForId, S, A>.applicative(Id<A>.monad())
-    }
-    
-    public static func monad() -> StateTMonad<ForId, S, IdMonad> {
-        return StateT<ForId, S, A>.monad(Id<A>.monad())
-    }
-    
-    public static func monadState() -> StateTMonadState<ForId, S, IdMonad> {
-        return StateT<ForId, S, A>.monadState(Id<A>.monad())
-    }
+/// Safe downcast.
+///
+/// - Parameter value: Value in higher-kind form.
+/// - Returns: Value cast to State.
+public postfix func ^<S, A>(_ value: StateOf<S, A>) -> State<S, A> {
+    return State.fix(value)
 }

@@ -1,120 +1,89 @@
 import Foundation
 
-public class ForSetK {}
+/// Witness for the `SetK<A>` data type. To be used in simulated Higher Kinded Types.
+public final class ForSetK {}
+
+/// Higher Kinded Type alias to improve readability over `Kind<ForSetK, A>`.
 public typealias SetKOf<A> = Kind<ForSetK, A>
 
-public class SetK<A: Hashable> : SetKOf<A> {
-	fileprivate let set : Set<A>
+/// An unordered collection of unique elements, wrapped to act as a Higher Kinded Type.
+public final class SetK<A: Hashable>: SetKOf<A> {
+    fileprivate let set: Set<A>
 
-	public static func +(lhs : SetK<A>, rhs : SetK<A>) -> SetK<A> {
-		return SetK(lhs.set.union(rhs.set))
-	}
+    /// Union of two sets.
+    ///
+    /// - Parameters:
+    ///   - lhs: Left hand side of the union.
+    ///   - rhs: Right hand side of the union.
+    /// - Returns: A new set that includes all elements present in both sets.
+    public static func +(lhs: SetK<A>, rhs: SetK<A>) -> SetK<A> {
+        return SetK(lhs.set.union(rhs.set))
+    }
 
-	public static func pure(_ a : A) -> SetK<A> {
-		return SetK(Set([a]))
-	}
+    /// Safe downcast.
+    ///
+    /// - Parameter fa: Value in the higher-kind form.
+    /// - Returns: Value cast to SetK.
+    public static func fix(_ fa: SetKOf<A>) -> SetK<A> {
+        return fa as! SetK<A>
+    }
 
-	public static func empty() -> SetK<A> {
-		return SetK(Set([]))
-	}
+    /// Initializes a `SetK` with the elements of a `Swift.Set`.
+    ///
+    /// - Parameter set: A set of elements to be wrapped in this `SetK`.
+    public init(_ set: Set<A>) {
+        self.set = set
+    }
 
-	public static func fix(_ fa : SetKOf<A>) -> SetK<A> {
-		return fa.fix()
-	}
+    /// Initializes a `SetK` from a variable number of elements.
+    ///
+    /// - Parameter elements: Values to be wrapped in this `SetK`.
+    public init(_ elements: A...) {
+        self.set = Set(elements)
+    }
 
-	public init(_ set : Set<A>) {
-		self.set = set
-	}
+    /// Extracts a `Swift.Set` from this wrapper.
+    public var asSet: Set<A> {
+        return set
+    }
 
-	public var asSet : Set<A> {
-		return set
-	}
-
-	public var isEmpty : Bool {
-		return set.isEmpty
-	}
-
-	public func foldL<B>(_ b : B, _ f : (B, A) -> B) -> B {
-		return set.reduce(b, f)
-	}
-
-	public func foldR<B>(_ b : Eval<B>, _ f : @escaping (A, Eval<B>) -> Eval<B>) -> Eval<B> {
-		func loop(_ skw : SetK<A>) -> Eval<B> {
-			if skw.set.isEmpty {
-				return b
-			} else {
-				return f(skw.set.first!, Eval.deferEvaluation({ loop(Set<A>(skw.set.dropFirst()).k()) }))
-			}
-		}
-		return Eval.deferEvaluation({ loop(self) })
-	}
-
-	public func combineK(_ y : SetK<A>) -> SetK<A> {
-		return self + y
-	}
+    /// Combines this set with another using the union of the underlying `Swift.Set`s.
+    ///
+    /// - Parameter y: A set
+    /// - Returns: A set containing the elements of the two sets.
+    public func combineK(_ y: SetK<A>) -> SetK<A> {
+        return self + y
+    }
 }
 
-public extension Kind where F == ForSetK, A: Hashable {
-	public func fix() -> SetK<A> {
-		return self as! SetK<A>
-	}
+/// Safe downcast.
+///
+/// - Parameter fa: Value in higher-kind form.
+/// - Returns: Value cast to SetK.
+public postfix func ^<A>(_ fa: SetKOf<A>) -> SetK<A> {
+    return SetK.fix(fa)
 }
 
+// MARK: Instance of `Semigroup` for `SetK`
+extension SetK: Semigroup {
+    public func combine(_ other: SetK<A>) -> SetK<A> {
+        return self + other
+    }
+}
+
+// MARK: Instance of `Monoid` for `SetK`
+extension SetK: Monoid {
+    public static func empty() -> SetK<A> {
+        return SetK(Set([]))
+    }
+}
+
+// MARK: Set extensions
 public extension Set {
-	public func k() -> SetK<Element> {
-		return SetK(self)
-	}
+    /// Wraps this set into a `SetK`.
+    ///
+    /// - Returns: A `SetK` that contains the elements of this set.
+    func k() -> SetK<Element> {
+        return SetK(self)
+    }
 }
-
-public extension SetK {
-
-	public static func semigroup() -> SetKSemigroup<A> {
-		return SetKSemigroup()
-	}
-
-	public static func monoid() -> SetKMonoid<A> {
-		return SetKMonoid()
-	}
-
-	public static func eq<EqA>(_ eqa : EqA) -> SetKEq<A, EqA> {
-		return SetKEq<A, EqA>(eqa)
-	}
-}
-
-public class SetKSemigroup<R: Hashable>: Semigroup {
-	public typealias A = SetKOf<R>
-
-	public func combine(_ a : SetKOf<R>, _ b : SetKOf<R>) -> SetKOf<R>  {
-		return a.fix().combineK(b.fix())
-	}
-}
-
-public class SetKMonoid<R: Hashable>: SetKSemigroup<R>, Monoid {
-	public typealias A = SetKOf<R>
-
-	public var empty: SetKOf<R> {
-		return SetK<R>.empty()
-	}
-}
-
-public class SetKEq<R, EqR> : Eq where EqR : Eq, EqR.A == R, EqR.A : Hashable {
-	public typealias A = SetKOf<R>
-
-	private let eqr : EqR
-
-	public init(_ eqr : EqR) {
-		self.eqr = eqr
-	}
-
-	public func eqv(_ setA: SetKOf<R>, _ setB: SetKOf<R>) -> Bool {
-		let a = setA.fix()
-		let b = setB.fix()
-		if a.set.count != b.set.count {
-			return false
-		} else {
-			return a.set.map { aa in b.set.contains{ bb in self.eqr.eqv(aa, bb) }}.reduce(true, and)
-		}
-	}
-}
-
-

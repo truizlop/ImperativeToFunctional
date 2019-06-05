@@ -1,15 +1,28 @@
 import Foundation
 
-public protocol MonadCombine : MonadFilter, Alternative {}
+/// A MonadCombine has the capabilities of `MonadFilter` and `Alternative` together.
+public protocol MonadCombine: MonadFilter, Alternative {}
 
 public extension MonadCombine {
-    public func unite<G, A, Fold>(_ fga : Kind<F, Kind<G, A>>, _ foldable : Fold) -> Kind<F, A> where Fold : Foldable, Fold.F == G {
-        return flatMap(fga, { ga in foldable.foldL(ga, self.empty(), { acc, a in self.combineK(acc, self.pure(a)) })})
+    /// Fold over the inner structure to combine all of the values with our combine method inherited from `MonoidK.
+    ///
+    /// - Parameter fga: Nested contexts value.
+    /// - Returns: A value in the context implementing this instance where the inner context has been folded.
+    static func unite<G: Foldable, A>(_ fga: Kind<Self, Kind<G, A>>) -> Kind<Self, A> {
+        return flatMap(fga, { ga in G.foldLeft(ga, empty(), { acc, a in combineK(acc, pure(a)) })})
     }
-    
-    public func separate<G, A, B, Bifold>(_ fgab : Kind<F, Kind2<G, A, B>>, _ bifoldable : Bifold) -> (Kind<F, A>, Kind<F, B>) where Bifold : Bifoldable, Bifold.F == G {
-        let asep = flatMap(fgab, { gab in bifoldable.bifoldMap(gab, self.pure, constant(self.empty()), self.algebra()) })
-        let bsep = flatMap(fgab, { gab in bifoldable.bifoldMap(gab, constant(self.empty()), self.pure, self.algebra()) } )
-        return (asep, bsep)
+}
+
+// MARK: Syntax for MonadCombine
+
+public extension Kind where F: MonadCombine {
+    /// Fold over the inner structure to combine all of the values with our combine method inherited from `MonoidK.
+    ///
+    /// This is a convenience method to call `MonadCombine.unite` as a static method of this type.
+    ///
+    /// - Parameter fga: Nested contexts value.
+    /// - Returns: A value in the context implementing this instance where the inner context has been folded.
+    static func unite<G: Foldable>(_ fga: Kind<F, Kind<G, A>>) -> Kind<F, A> {
+        return F.unite(fga)
     }
 }
